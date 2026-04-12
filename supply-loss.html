@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supply Loss Calculator</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #080f1a;
+  --navy2: #0d1b2a;
+  --accent: #e85d00;
+  --accent2: #ff7a1a;
+  --blue: #00a8e8;
+  --green: #06d6a0;
+  --amber: #ffd166;
+  --red: #ef476f;
+  --text: #f0e6d8;
+  --muted: #7a6a5a;
+  --card: rgba(255,255,255,0.03);
+  --border: rgba(232,93,0,0.15);
+  --border2: rgba(232,93,0,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--navy); color:var(--text); font-family:'Barlow',sans-serif; min-height:100vh; overflow-x:hidden; }
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image: linear-gradient(rgba(232,93,0,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(232,93,0,0.03) 1px,transparent 1px);
+  background-size:40px 40px;
+}
+
+/* HEADER */
+.hdr { position:relative; z-index:2; padding:12px 22px; border-bottom:1px solid var(--border); background:rgba(8,15,26,0.98); display:flex; align-items:center; justify-content:space-between; }
+.hdr-l { display:flex; align-items:center; gap:12px; }
+.logo { width:36px; height:36px; border:1.5px solid var(--accent); border-radius:6px; display:flex; align-items:center; justify-content:center; font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:700; color:var(--accent); letter-spacing:0px; text-align:center; line-height:1.1; }
+.hdr h1 { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:var(--text); }
+.hdr-sub { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-top:1px; }
+.inc-tag { display:flex; align-items:center; gap:7px; background:rgba(239,71,111,0.08); border:1px solid rgba(239,71,111,0.3); padding:5px 12px; border-radius:20px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--red); }
+.inc-dot { width:6px; height:6px; background:var(--red); border-radius:50%; animation:blink 1.5s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+/* SUMMARY BAR */
+.sumbar { position:relative; z-index:2; background:rgba(13,27,42,0.9); border-bottom:1px solid var(--border); padding:10px 22px; display:flex; gap:0; align-items:stretch; }
+.sum-item { flex:1; padding:8px 16px; border-right:1px solid var(--border2); display:flex; flex-direction:column; gap:2px; }
+.sum-item:last-child { border-right:none; }
+.sum-lbl { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+.sum-val { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; line-height:1; }
+.sum-sub { font-size:10px; color:var(--muted); }
+
+/* TABS */
+.tab-bar { position:relative; z-index:2; background:rgba(8,15,26,0.95); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:0; overflow-x:auto; padding:0 22px; }
+.tab { padding:10px 16px; border:none; background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; }
+.tab.active { color:var(--accent); border-bottom-color:var(--accent); background:rgba(232,93,0,0.05); }
+.tab:hover { color:var(--text); }
+.tab-add { padding:8px 14px; border:1px dashed rgba(232,93,0,0.3); background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; cursor:pointer; border-radius:6px; margin:6px 0 6px 8px; transition:all 0.2s; }
+.tab-add:hover { color:var(--accent); border-color:var(--accent); }
+.tab-del { font-size:11px; color:rgba(239,71,111,0.5); margin-left:6px; cursor:pointer; }
+.tab-del:hover { color:var(--red); }
+
+/* MAIN */
+.main { position:relative; z-index:1; display:flex; flex-direction:column; height:calc(100vh - 155px); overflow:hidden; }
+
+/* SUMMARY VIEW */
+.summary-view { padding:18px 22px; overflow-y:auto; display:none; flex-direction:column; gap:14px; }
+.summary-view.active { display:flex; }
+.lca-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.lca-card { background:var(--card); border:1px solid var(--border2); border-radius:10px; padding:14px; position:relative; overflow:hidden; transition:border-color 0.3s; }
+.lca-card.has-data { border-color:rgba(232,93,0,0.25); }
+.lca-card-name { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.lca-card-stats { display:flex; flex-direction:column; gap:4px; }
+.lca-stat { display:flex; justify-content:space-between; align-items:center; }
+.lca-stat-lbl { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; }
+.lca-stat-val { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; }
+.lca-card-bar { margin-top:8px; height:4px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; }
+.lca-card-bar-fill { height:100%; background:var(--red); border-radius:2px; transition:width 0.4s; }
+
+/* LCA VIEW */
+.lca-view { display:none; flex-direction:column; height:100%; }
+.lca-view.active { display:flex; }
+.lca-top { display:grid; grid-template-columns:280px 1fr; height:100%; }
+
+/* LEFT INPUTS */
+.lca-inputs { border-right:1px solid var(--border); padding:16px; overflow-y:auto; background:rgba(8,15,26,0.5); display:flex; flex-direction:column; gap:14px; }
+.slbl { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--accent); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.slbl::after { content:''; flex:1; height:1px; background:var(--border2); }
+.ig { margin-bottom:10px; }
+.il { font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:500; }
+.ir { display:flex; gap:7px; align-items:center; }
+input[type=number], input[type=text] { background:rgba(255,255,255,0.04); border:1px solid rgba(232,93,0,0.15); border-radius:6px; color:var(--text); padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:14px; width:100%; outline:none; transition:border-color 0.2s; }
+input[type=number]:focus, input[type=text]:focus { border-color:var(--accent); background:rgba(232,93,0,0.04); }
+.un { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); white-space:nowrap; min-width:36px; }
+.upload-btn { width:100%; padding:10px; background:rgba(232,93,0,0.08); border:1px dashed rgba(232,93,0,0.3); border-radius:7px; color:var(--accent); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px; cursor:pointer; transition:all 0.2s; text-align:center; }
+.upload-btn:hover { background:rgba(232,93,0,0.15); border-color:var(--accent); }
+.upload-status { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; text-align:center; }
+.calc-val { background:rgba(232,93,0,0.06); border:1px solid rgba(232,93,0,0.15); border-radius:6px; padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:14px; color:var(--accent2); }
+.calc-lbl { font-size:10px; color:var(--muted); margin-bottom:3px; }
+
+/* RIGHT OUTPUT */
+.lca-output { display:flex; flex-direction:column; overflow:hidden; }
+.lca-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:0; border-bottom:1px solid var(--border2); }
+.lst { padding:14px 16px; border-right:1px solid var(--border2); text-align:center; }
+.lst:last-child { border-right:none; }
+.lst-val { font-family:'Rajdhani',sans-serif; font-size:28px; font-weight:700; color:var(--accent); line-height:1; transition:color 0.3s; }
+.lst-unit { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; margin-top:1px; }
+.lst-name { font-size:10px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+
+/* PROPERTY TABLE */
+.prop-table-wrap { flex:1; overflow-y:auto; padding:0; }
+.prop-filter { padding:10px 16px; border-bottom:1px solid var(--border2); display:flex; gap:10px; align-items:center; background:rgba(8,15,26,0.6); }
+.filter-btn { padding:5px 12px; border:1px solid var(--border2); background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600; letter-spacing:1px; cursor:pointer; border-radius:5px; transition:all 0.2s; }
+.filter-btn.on { background:rgba(239,71,111,0.1); border-color:rgba(239,71,111,0.4); color:var(--red); }
+.filter-btn.on-all { background:rgba(232,93,0,0.1); border-color:rgba(232,93,0,0.3); color:var(--accent2); }
+.filter-count { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); margin-left:auto; }
+.export-btn { padding:5px 12px; border:1px solid rgba(6,214,160,0.3); background:rgba(6,214,160,0.07); color:var(--green); font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600; letter-spacing:1px; cursor:pointer; border-radius:5px; transition:all 0.2s; }
+.export-btn:hover { background:rgba(6,214,160,0.15); border-color:var(--green); }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead { position:sticky; top:0; z-index:1; background:#0d1b2a; }
+th { padding:8px 12px; text-align:left; font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border2); font-weight:400; }
+td { padding:7px 12px; border-bottom:1px solid rgba(232,93,0,0.05); color:var(--text); }
+tr.out { background:rgba(239,71,111,0.06); }
+tr.out td:first-child { border-left:3px solid var(--red); }
+tr:hover td { background:rgba(255,255,255,0.02); }
+.status-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; font-family:'Share Tech Mono',monospace; font-weight:600; letter-spacing:1px; }
+.status-out { background:rgba(239,71,111,0.15); color:var(--red); border:1px solid rgba(239,71,111,0.3); }
+.status-in { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+.empty-state { text-align:center; padding:60px 20px; color:var(--muted); }
+.empty-icon { font-size:36px; margin-bottom:12px; }
+.empty-title { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:600; margin-bottom:6px; color:var(--text); opacity:0.5; }
+.empty-sub { font-size:12px; line-height:1.6; }
+
+@media(max-width:800px) {
+  .lca-top { grid-template-columns:1fr; }
+  .lca-stats-row { grid-template-columns:repeat(2,1fr); }
+  .lca-card { min-width:160px; }
+}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo">SL<br>CAL</div>
+    <div>
+      <h1>Supply Loss Calculator</h1>
+      <div class="hdr-sub">Dwr Cymru Welsh Water &middot; Trunk Burst Incident Tool</div>
+    </div>
+  </div>
+  <div class="inc-tag"><div class="inc-dot"></div>INCIDENT ACTIVE</div>
+</div>
+
+<!-- SUMMARY BAR -->
+<div class="sumbar">
+  <div class="sum-item">
+    <div class="sum-lbl">Total At Risk</div>
+    <div class="sum-val" id="sumTotalRisk" style="color:var(--amber)">0</div>
+    <div class="sum-sub">properties across all LCAs</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">Out of Supply</div>
+    <div class="sum-val" id="sumTotalOut" style="color:var(--red)">0</div>
+    <div class="sum-sub">currently no water</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">Still in Supply</div>
+    <div class="sum-val" id="sumTotalIn" style="color:var(--green)">0</div>
+    <div class="sum-sub">currently receiving water</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">LCAs Loaded</div>
+    <div class="sum-val" id="sumLcaCount" style="color:var(--blue)">0</div>
+    <div class="sum-sub">areas configured</div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tab-bar" id="tabBar">
+  <button class="tab active" onclick="showTab('summary')" id="tab-summary">SUMMARY</button>
+  <button class="tab-add" onclick="addLca()">+ ADD LCA</button>
+</div>
+
+<!-- SUMMARY VIEW -->
+<div class="main">
+  <div class="summary-view active" id="view-summary">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">LCA OVERVIEW</div>
+    <div class="lca-grid" id="lcaGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">⚡</div>
+        <div class="empty-title">No LCAs Added Yet</div>
+        <div class="empty-sub">Click <strong style="color:var(--accent)">+ ADD LCA</strong> above to add your first Loss Control Area,<br>then upload the property CSV and enter logger details.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var lcas = [];
+var activeTab = 'summary';
+
+function addLca() {
+  var id = 'lca_' + Date.now();
+  var lca = {
+    id: id,
+    name: 'LCA ' + (lcas.length + 1),
+    loggerAod: '',
+    pressure: '',
+    minSupply: 3,
+    props: [],
+    filter: 'all'
+  };
+  lcas.push(lca);
+  renderTabs();
+  showTab(id);
+}
+
+function removeLca(id, e) {
+  e.stopPropagation();
+  if(!confirm('Remove this LCA?')) return;
+  lcas = lcas.filter(function(l){ return l.id !== id; });
+  renderTabs();
+  showTab('summary');
+  updateSummary();
+}
+
+function renderTabs() {
+  var bar = document.getElementById('tabBar');
+  bar.innerHTML = '<button class="tab ' + (activeTab==='summary'?'active':'') + '" onclick="showTab(\'summary\')" id="tab-summary">SUMMARY</button>';
+  lcas.forEach(function(lca) {
+    bar.innerHTML += '<button class="tab ' + (activeTab===lca.id?'active':'') + '" onclick="showTab(\'' + lca.id + '\')" id="tab-' + lca.id + '">' +
+      escHtml(lca.name) +
+      (lca.props.length > 0 ? ' <span style="color:var(--muted);font-size:10px;">(' + lca.props.length + ')</span>' : '') +
+      ' <span class="tab-del" onclick="removeLca(\'' + lca.id + '\',event)">x</span></button>';
+  });
+  bar.innerHTML += '<button class="tab-add" onclick="addLca()">+ ADD LCA</button>';
+}
+
+function showTab(id) {
+  activeTab = id;
+  // Hide all views
+  document.getElementById('view-summary').classList.remove('active');
+  document.querySelectorAll('.lca-view').forEach(function(v){ v.classList.remove('active'); });
+  // Show target
+  if(id === 'summary') {
+    document.getElementById('view-summary').classList.add('active');
+  } else {
+    var el = document.getElementById('view-' + id);
+    if(!el) { buildLcaView(id); el = document.getElementById('view-' + id); }
+    if(el) el.classList.add('active');
+  }
+  renderTabs();
+}
+
+function buildLcaView(id) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(!lca) return;
+  var main = document.querySelector('.main');
+
+  var div = document.createElement('div');
+  div.className = 'lca-view';
+  div.id = 'view-' + id;
+  div.innerHTML = `
+    <div class="lca-top">
+      <div class="lca-inputs">
+        <div>
+          <div class="slbl">LCA Name</div>
+          <div class="ig">
+            <input type="text" id="name_${id}" value="${escHtml(lca.name)}" placeholder="e.g. Conway 281278D1" oninput="updateName('${id}',this.value)" style="font-family:'Barlow',sans-serif;font-size:14px;">
+          </div>
+        </div>
+        <div>
+          <div class="slbl">Property Data</div>
+          <div class="ig">
+            <input type="file" id="file_${id}" accept=".csv" style="display:none" onchange="loadFile('${id}',this)">
+            <div class="upload-btn" onclick="document.getElementById('file_${id}').click()">UPLOAD CSV</div>
+            <div class="upload-status" id="status_${id}">No file loaded</div>
+          </div>
+        </div>
+        <div>
+          <div class="slbl">Logger Details</div>
+          <div class="ig">
+            <div class="il">Logger / WPS AOD</div>
+            <div class="ir">
+              <input type="number" id="aod_${id}" placeholder="e.g. 137" step="0.1" oninput="calcLca('${id}')">
+              <span class="un">mAOD</span>
+            </div>
+          </div>
+          <div class="ig">
+            <div class="il">Current Pressure at Logger</div>
+            <div class="ir">
+              <input type="number" id="pres_${id}" placeholder="e.g. 23" step="0.1" oninput="calcLca('${id}')">
+              <span class="un">mh</span>
+            </div>
+          </div>
+          <div class="ig">
+            <div class="calc-lbl">Supplying up to (mAOD)</div>
+            <div class="calc-val" id="supplyTo_${id}">--</div>
+          </div>
+          <div class="ig">
+            <div class="calc-lbl">Min supply threshold</div>
+            <div class="calc-val" style="color:var(--muted)">3.0 mh (fixed)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lca-output">
+        <div class="lca-stats-row">
+          <div class="lst"><div class="lst-val" id="oTotal_${id}">--</div><div class="lst-unit">props</div><div class="lst-name">Total At Risk</div></div>
+          <div class="lst"><div class="lst-val" id="oOut_${id}" style="color:var(--red)">--</div><div class="lst-unit">props</div><div class="lst-name">Out of Supply</div></div>
+          <div class="lst"><div class="lst-val" id="oIn_${id}" style="color:var(--green)">--</div><div class="lst-unit">props</div><div class="lst-name">In Supply</div></div>
+          <div class="lst"><div class="lst-val" id="oPct_${id}">--</div><div class="lst-unit">%</div><div class="lst-name">Out of Supply %</div></div>
+        </div>
+        <div class="prop-filter">
+          <button class="filter-btn on-all" id="fAll_${id}" onclick="setFilter('${id}','all')">ALL</button>
+          <button class="filter-btn" id="fOut_${id}" onclick="setFilter('${id}','out')">OUT OF SUPPLY</button>
+          <button class="filter-btn" id="fIn_${id}" onclick="setFilter('${id}','in')">IN SUPPLY</button>
+          <span class="filter-count" id="fCount_${id}">0 properties</span>
+          <button class="export-btn" onclick="exportOut('${id}')">EXPORT OUT OF SUPPLY</button>
+        </div>
+        <div class="prop-table-wrap">
+          <div class="empty-state" id="emptyState_${id}">
+            <div class="empty-icon">📂</div>
+            <div class="empty-title">No Data Loaded</div>
+            <div class="empty-sub">Upload a property CSV exported from GIS,<br>then enter the logger AOD and current pressure.</div>
+          </div>
+          <table id="propTable_${id}" style="display:none">
+            <thead>
+              <tr>
+                <th>STATUS</th>
+                <th>ADDRESS</th>
+                <th>POSTCODE</th>
+                <th>PROP AOD (m)</th>
+                <th>AVAIL HEAD (m)</th>
+              </tr>
+            </thead>
+            <tbody id="propBody_${id}"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  main.appendChild(div);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function updateName(id, val) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(lca) { lca.name = val; renderTabs(); updateSummary(); }
+}
+
+function loadFile(id, input) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(!lca || !input.files[0]) return;
+  var file = input.files[0];
+  document.getElementById('status_' + id).textContent = 'Loading...';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var rows = text.split('\n');
+    var headers = rows[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+    var zIdx = headers.indexOf('ZCOORD');
+    var uprn = headers.indexOf('UPRN');
+    var bnum = headers.indexOf('building_num');
+    var bnam = headers.indexOf('build_nam');
+    var snam = headers.indexOf('street_nam');
+    var ptow = headers.indexOf('posttown_nam');
+    var pcod = headers.indexOf('postcode');
+    var org  = headers.indexOf('org_name');
+    var subB = headers.indexOf('sub_build_nam');
+
+    if(zIdx < 0) {
+      document.getElementById('status_' + id).textContent = 'Error: ZCOORD column not found';
+      return;
+    }
+
+    lca.props = [];
+    for(var i=1; i<rows.length; i++) {
+      if(!rows[i].trim()) continue;
+      // Parse CSV row respecting quoted fields
+      var cols = parseCSVRow(rows[i]);
+      var z = parseFloat(cols[zIdx]);
+      if(isNaN(z)) continue;
+      var addr = buildAddr(cols, bnum, bnam, subB, org, snam, ptow);
+      var pc = cols[pcod] ? cols[pcod].trim().replace(/^"|"$/g,'') : '';
+      lca.props.push({ z: z, addr: addr, pc: pc });
+    }
+
+    document.getElementById('status_' + id).textContent = lca.props.length + ' properties loaded';
+    calcLca(id);
+  };
+  reader.readAsText(file);
+}
+
+function parseCSVRow(row) {
+  var result = [], current = '', inQuote = false;
+  for(var i=0; i<row.length; i++) {
+    var ch = row[i];
+    if(ch === '"') { inQuote = !inQuote; }
+    else if(ch === ',' && !inQuote) { result.push(current.trim()); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function buildAddr(cols, bnum, bnam, subB, org, snam, ptow) {
+  var parts = [];
+  var orgV = cols[org] ? cols[org].trim().replace(/^"|"$/g,'') : '';
+  var bnumV = cols[bnum] ? cols[bnum].trim().replace(/^"|"$/g,'') : '';
+  var bnamV = cols[bnam] ? cols[bnam].trim().replace(/^"|"$/g,'') : '';
+  var subBV = cols[subB] ? cols[subB].trim().replace(/^"|"$/g,'') : '';
+  var snamV = cols[snam] ? cols[snam].trim().replace(/^"|"$/g,'') : '';
+  var ptowV = cols[ptow] ? cols[ptow].trim().replace(/^"|"$/g,'') : '';
+  if(orgV) parts.push(orgV);
+  if(subBV) parts.push(subBV);
+  if(bnumV) parts.push(bnumV);
+  if(bnamV) parts.push(bnamV);
+  if(snamV) parts.push(snamV);
+  if(ptowV) parts.push(ptowV);
+  return parts.filter(Boolean).join(', ');
+}
+
+function calcLca(id) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(!lca) return;
+  var aod = parseFloat(document.getElementById('aod_' + id).value);
+  var pres = parseFloat(document.getElementById('pres_' + id).value);
+
+  if(!isNaN(aod) && !isNaN(pres)) {
+    var supplyTo = aod + pres - 3;
+    document.getElementById('supplyTo_' + id).textContent = supplyTo.toFixed(2) + ' mAOD';
+    lca.supplyTo = supplyTo;
+    lca.aod = aod;
+    lca.pres = pres;
+  } else {
+    document.getElementById('supplyTo_' + id).textContent = '--';
+    lca.supplyTo = null;
+  }
+
+  var total = lca.props.length;
+  var outCount = 0;
+
+  if(lca.supplyTo !== null && total > 0) {
+    lca.props.forEach(function(p) {
+      p.out = p.z > lca.supplyTo;
+      p.head = lca.aod !== undefined ? (lca.aod + lca.pres - p.z) : null;
+      if(p.out) outCount++;
+    });
+  } else {
+    lca.props.forEach(function(p){ p.out = false; p.head = null; });
+  }
+
+  var inCount = total - outCount;
+  var pct = total > 0 ? ((outCount/total)*100).toFixed(1) : '--';
+
+  document.getElementById('oTotal_' + id).textContent = total > 0 ? total.toLocaleString() : '--';
+  document.getElementById('oOut_' + id).textContent = total > 0 ? outCount.toLocaleString() : '--';
+  document.getElementById('oIn_' + id).textContent = total > 0 ? inCount.toLocaleString() : '--';
+  document.getElementById('oPct_' + id).textContent = total > 0 ? pct : '--';
+  document.getElementById('oPct_' + id).style.color = outCount > 0 ? 'var(--red)' : 'var(--green)';
+
+  lca.total = total;
+  lca.outCount = outCount;
+  lca.inCount = inCount;
+
+  renderTable(id);
+  updateSummary();
+}
+
+function setFilter(id, f) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(lca) lca.filter = f;
+  document.getElementById('fAll_' + id).className = 'filter-btn' + (f==='all'?' on-all':'');
+  document.getElementById('fOut_' + id).className = 'filter-btn' + (f==='out'?' on':'');
+  document.getElementById('fIn_' + id).className = 'filter-btn' + (f==='in'?' on-all':'');
+  renderTable(id);
+}
+
+function renderTable(id) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(!lca || lca.props.length === 0) {
+    document.getElementById('emptyState_' + id).style.display = 'block';
+    document.getElementById('propTable_' + id).style.display = 'none';
+    return;
+  }
+  document.getElementById('emptyState_' + id).style.display = 'none';
+  document.getElementById('propTable_' + id).style.display = 'table';
+
+  var filtered = lca.props;
+  if(lca.filter === 'out') filtered = lca.props.filter(function(p){ return p.out; });
+  if(lca.filter === 'in') filtered = lca.props.filter(function(p){ return !p.out; });
+
+  // Sort: out of supply first, then by AOD descending
+  filtered.sort(function(a,b){
+    if(a.out && !b.out) return -1;
+    if(!a.out && b.out) return 1;
+    return b.z - a.z;
+  });
+
+  document.getElementById('fCount_' + id).textContent = filtered.length.toLocaleString() + ' properties';
+
+  var body = document.getElementById('propBody_' + id);
+  var html = '';
+  filtered.forEach(function(p) {
+    var headStr = p.head !== null ? p.head.toFixed(1) + 'm' : '--';
+    var headCol = p.head !== null ? (p.out ? 'color:var(--red)' : p.head < 7 ? 'color:var(--amber)' : 'color:var(--green)') : '';
+    html += '<tr class="' + (p.out?'out':'') + '">' +
+      '<td><span class="status-pill ' + (p.out?'status-out':'status-in') + '">' + (p.out?'OUT':'IN') + '</span></td>' +
+      '<td>' + escHtml(p.addr || '--') + '</td>' +
+      '<td><span style="font-family:monospace;font-size:11px">' + escHtml(p.pc) + '</span></td>' +
+      '<td style="font-family:monospace;font-size:12px">' + p.z.toFixed(2) + '</td>' +
+      '<td style="font-family:monospace;font-size:12px;' + headCol + '">' + headStr + '</td>' +
+      '</tr>';
+  });
+  body.innerHTML = html;
+}
+
+function updateSummary() {
+  var totalRisk = 0, totalOut = 0, totalIn = 0, loaded = 0;
+  lcas.forEach(function(lca) {
+    if(lca.total > 0) {
+      totalRisk += lca.total;
+      totalOut += lca.outCount || 0;
+      totalIn += lca.inCount || 0;
+      loaded++;
+    }
+  });
+  document.getElementById('sumTotalRisk').textContent = totalRisk.toLocaleString();
+  document.getElementById('sumTotalOut').textContent = totalOut.toLocaleString();
+  document.getElementById('sumTotalIn').textContent = totalIn.toLocaleString();
+  document.getElementById('sumLcaCount').textContent = lcas.length;
+
+  // Update LCA grid
+  var grid = document.getElementById('lcaGrid');
+  if(lcas.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">⚡</div><div class="empty-title">No LCAs Added Yet</div><div class="empty-sub">Click <strong style="color:var(--accent)">+ ADD LCA</strong> above to add your first Loss Control Area.</div></div>';
+    return;
+  }
+  var html = '';
+  lcas.forEach(function(lca) {
+    var pct = lca.total > 0 ? ((lca.outCount||0)/lca.total*100).toFixed(0) : 0;
+    var hasData = lca.total > 0;
+    html += '<div class="lca-card ' + (hasData?'has-data':'') + '" onclick="showTab(\'' + lca.id + '\')" style="cursor:pointer">' +
+      '<div class="lca-card-name">' + escHtml(lca.name) + '</div>' +
+      '<div class="lca-card-stats">' +
+        '<div class="lca-stat"><span class="lca-stat-lbl">TOTAL</span><span class="lca-stat-val" style="color:var(--amber)">' + (hasData ? lca.total.toLocaleString() : '--') + '</span></div>' +
+        '<div class="lca-stat"><span class="lca-stat-lbl">OUT</span><span class="lca-stat-val" style="color:var(--red)">' + (hasData ? (lca.outCount||0).toLocaleString() : '--') + '</span></div>' +
+        '<div class="lca-stat"><span class="lca-stat-lbl">IN</span><span class="lca-stat-val" style="color:var(--green)">' + (hasData ? (lca.inCount||0).toLocaleString() : '--') + '</span></div>' +
+      '</div>' +
+      (hasData ? '<div class="lca-card-bar"><div class="lca-card-bar-fill" style="width:' + pct + '%"></div></div>' : '') +
+    '</div>';
+  });
+  grid.innerHTML = html;
+}
+
+function exportOut(id) {
+  var lca = lcas.find(function(l){ return l.id === id; });
+  if(!lca || lca.props.length === 0) { alert('No data to export'); return; }
+  var outProps = lca.props.filter(function(p){ return p.out; });
+  if(outProps.length === 0) { alert('No properties currently out of supply'); return; }
+  outProps.sort(function(a,b){ return b.z - a.z; });
+  var rows = [];
+  rows.push('Supply Loss Export - ' + lca.name);
+  rows.push('Generated: ' + new Date().toLocaleString());
+  rows.push('Total Out of Supply: ' + outProps.length);
+  rows.push('Supplying up to: ' + (lca.supplyTo ? lca.supplyTo.toFixed(2) + ' mAOD' : '--'));
+  rows.push('');
+  rows.push('STATUS,ADDRESS,POSTCODE,PROP AOD (m),AVAILABLE HEAD (m)');
+  outProps.forEach(function(p) {
+    var head = p.head !== null ? p.head.toFixed(1) : '--';
+    rows.push('OUT OF SUPPLY,"' + (p.addr||'').replace(/"/g,'""') + '",' + p.pc + ',' + p.z.toFixed(2) + ',' + head);
+  });
+  var csv = rows.join('\n');
+  var a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = 'supply-loss-' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+</script>
+</body>
+</html>
