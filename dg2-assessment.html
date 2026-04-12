@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DG2 Pressure Assessment</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #080d14;
+  --accent: #0077b6;
+  --accent2: #00b4d8;
+  --green: #06d6a0;
+  --amber: #ffd166;
+  --red: #ef476f;
+  --purple: #9b5de5;
+  --text: #e0eeff;
+  --muted: #5a6a8a;
+  --card: rgba(255,255,255,0.03);
+  --border: rgba(0,119,182,0.15);
+  --border2: rgba(0,119,182,0.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--navy); color:var(--text); font-family:'Barlow',sans-serif; min-height:100vh; overflow-x:hidden; }
+body::before {
+  content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image: linear-gradient(rgba(0,119,182,0.03) 1px,transparent 1px), linear-gradient(90deg,rgba(0,119,182,0.03) 1px,transparent 1px);
+  background-size:44px 44px;
+}
+
+.hdr { position:relative; z-index:2; padding:12px 22px; border-bottom:1px solid var(--border); background:rgba(8,13,20,0.98); display:flex; align-items:center; justify-content:space-between; }
+.hdr-l { display:flex; align-items:center; gap:12px; }
+.logo { width:36px; height:36px; border:1.5px solid var(--accent2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:700; color:var(--accent2); }
+.hdr h1 { font-family:'Rajdhani',sans-serif; font-size:18px; font-weight:700; letter-spacing:2px; text-transform:uppercase; }
+.hdr-sub { font-size:10px; color:var(--muted); letter-spacing:2px; text-transform:uppercase; margin-top:1px; }
+.reg-tag { display:flex; align-items:center; gap:7px; background:rgba(155,93,229,0.08); border:1px solid rgba(155,93,229,0.3); padding:5px 12px; border-radius:20px; font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--purple); }
+
+/* SUMMARY BAR */
+.sumbar { position:relative; z-index:2; background:rgba(8,13,20,0.95); border-bottom:1px solid var(--border); padding:10px 22px; display:flex; gap:0; align-items:stretch; }
+.sum-item { flex:1; padding:8px 16px; border-right:1px solid var(--border2); display:flex; flex-direction:column; gap:2px; }
+.sum-item:last-child { border-right:none; }
+.sum-lbl { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); }
+.sum-val { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; line-height:1; }
+.sum-sub { font-size:10px; color:var(--muted); }
+
+/* TABS */
+.tab-bar { position:relative; z-index:2; background:rgba(8,13,20,0.95); border-bottom:1px solid var(--border); display:flex; align-items:center; gap:0; overflow-x:auto; padding:0 22px; }
+.tab { padding:10px 16px; border:none; background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap; transition:all 0.2s; }
+.tab.active { color:var(--accent2); border-bottom-color:var(--accent2); background:rgba(0,180,216,0.05); }
+.tab:hover { color:var(--text); }
+.tab-add { padding:8px 14px; border:1px dashed rgba(0,180,216,0.3); background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; cursor:pointer; border-radius:6px; margin:6px 0 6px 8px; transition:all 0.2s; }
+.tab-add:hover { color:var(--accent2); border-color:var(--accent2); }
+.tab-del { font-size:11px; color:rgba(239,71,111,0.5); margin-left:6px; cursor:pointer; }
+.tab-del:hover { color:var(--red); }
+
+.main { position:relative; z-index:1; display:flex; flex-direction:column; height:calc(100vh - 150px); overflow:hidden; }
+
+/* SUMMARY VIEW */
+.summary-view { padding:18px 22px; overflow-y:auto; display:none; flex-direction:column; gap:14px; }
+.summary-view.active { display:flex; }
+.dma-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+.dma-card { background:var(--card); border:1px solid var(--border2); border-radius:10px; padding:14px; cursor:pointer; transition:border-color 0.3s; }
+.dma-card.has-data { border-color:rgba(0,119,182,0.3); }
+.dma-card:hover { border-color:var(--accent2); }
+.dma-card-name { font-family:'Rajdhani',sans-serif; font-size:14px; font-weight:700; margin-bottom:8px; }
+.dma-stat { display:flex; justify-content:space-between; align-items:center; margin-bottom:3px; }
+.dma-stat-lbl { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; }
+.dma-stat-val { font-family:'Rajdhani',sans-serif; font-size:16px; font-weight:700; }
+
+/* DMA VIEW */
+.dma-view { display:none; flex-direction:column; height:100%; }
+.dma-view.active { display:flex; }
+.dma-top { display:grid; grid-template-columns:260px 1fr; height:100%; }
+
+/* LEFT INPUTS */
+.dma-inputs { border-right:1px solid var(--border); padding:16px; overflow-y:auto; background:rgba(8,13,20,0.5); display:flex; flex-direction:column; gap:14px; }
+.slbl { font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--accent2); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.slbl::after { content:''; flex:1; height:1px; background:var(--border2); }
+.ig { margin-bottom:10px; }
+.il { font-size:11px; color:var(--muted); margin-bottom:4px; font-weight:500; }
+.ir { display:flex; gap:7px; align-items:center; }
+input[type=number], input[type=text] { background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:14px; width:100%; outline:none; transition:all 0.2s; }
+input[type=number]:focus, input[type=text]:focus { border-color:var(--accent2); background:rgba(0,180,216,0.04); }
+.un { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); white-space:nowrap; min-width:34px; }
+.upload-btn { width:100%; padding:10px; background:rgba(0,180,216,0.07); border:1px dashed rgba(0,180,216,0.3); border-radius:7px; color:var(--accent2); font-family:'Rajdhani',sans-serif; font-size:13px; font-weight:600; letter-spacing:1px; cursor:pointer; transition:all 0.2s; text-align:center; }
+.upload-btn:hover { background:rgba(0,180,216,0.14); border-color:var(--accent2); }
+.upload-status { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); margin-top:4px; text-align:center; }
+.calc-val { background:rgba(0,180,216,0.05); border:1px solid rgba(0,180,216,0.15); border-radius:6px; padding:8px 10px; font-family:'Share Tech Mono',monospace; font-size:14px; color:var(--accent2); }
+.thresh-info { background:rgba(255,255,255,0.02); border:1px solid var(--border2); border-radius:6px; padding:10px 12px; font-family:'Share Tech Mono',monospace; font-size:10px; line-height:2; }
+
+/* RIGHT OUTPUT */
+.dma-output { display:flex; flex-direction:column; overflow:hidden; }
+.dma-stats-row { display:grid; grid-template-columns:repeat(4,1fr); gap:0; border-bottom:1px solid var(--border2); }
+.dst { padding:13px 16px; border-right:1px solid var(--border2); text-align:center; }
+.dst:last-child { border-right:none; }
+.dst-val { font-family:'Rajdhani',sans-serif; font-size:26px; font-weight:700; color:var(--accent2); line-height:1; transition:color 0.3s; }
+.dst-unit { font-size:10px; color:var(--muted); font-family:'Share Tech Mono',monospace; margin-top:1px; }
+.dst-name { font-size:10px; color:var(--muted); margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+
+/* RESULTS TABS */
+.res-tabs { display:flex; border-bottom:1px solid var(--border2); background:rgba(8,13,20,0.6); }
+.res-tab { padding:9px 16px; border:none; background:transparent; color:var(--muted); font-family:'Rajdhani',sans-serif; font-size:12px; font-weight:600; letter-spacing:1px; cursor:pointer; border-bottom:2px solid transparent; transition:all 0.2s; }
+.res-tab.active-dg2 { color:var(--amber); border-bottom-color:var(--amber); background:rgba(255,209,102,0.04); }
+.res-tab.active-gss { color:var(--red); border-bottom-color:var(--red); background:rgba(239,71,111,0.04); }
+.res-tab.active-ok { color:var(--green); border-bottom-color:var(--green); background:rgba(6,214,160,0.04); }
+.res-tab-count { font-size:10px; margin-left:4px; opacity:0.7; }
+
+.prop-filter { padding:8px 16px; border-bottom:1px solid var(--border2); display:flex; gap:8px; align-items:center; background:rgba(8,13,20,0.5); }
+.export-btn { padding:5px 12px; border:1px solid rgba(6,214,160,0.3); background:rgba(6,214,160,0.07); color:var(--green); font-family:'Rajdhani',sans-serif; font-size:11px; font-weight:600; letter-spacing:1px; cursor:pointer; border-radius:5px; transition:all 0.2s; }
+.export-btn:hover { background:rgba(6,214,160,0.15); border-color:var(--green); }
+.export-gss { border-color:rgba(239,71,111,0.3); background:rgba(239,71,111,0.07); color:var(--red); }
+.export-gss:hover { background:rgba(239,71,111,0.15); border-color:var(--red); }
+.prop-count { font-family:'Share Tech Mono',monospace; font-size:10px; color:var(--muted); margin-left:auto; }
+
+.prop-table-wrap { flex:1; overflow-y:auto; }
+table { width:100%; border-collapse:collapse; font-size:12px; }
+thead { position:sticky; top:0; z-index:1; background:#0d1b2a; }
+th { padding:8px 12px; text-align:left; font-family:'Share Tech Mono',monospace; font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--muted); border-bottom:1px solid var(--border2); font-weight:400; }
+td { padding:7px 12px; border-bottom:1px solid rgba(0,119,182,0.05); color:var(--text); }
+tr.gss td:first-child { border-left:3px solid var(--red); }
+tr.dg2 td:first-child { border-left:3px solid var(--amber); }
+tr.gss { background:rgba(239,71,111,0.04); }
+tr.dg2 { background:rgba(255,209,102,0.03); }
+.status-pill { display:inline-block; padding:2px 8px; border-radius:10px; font-size:9px; font-family:'Share Tech Mono',monospace; font-weight:600; letter-spacing:1px; }
+.pill-gss { background:rgba(239,71,111,0.15); color:var(--red); border:1px solid rgba(239,71,111,0.3); }
+.pill-dg2 { background:rgba(255,209,102,0.12); color:var(--amber); border:1px solid rgba(255,209,102,0.3); }
+.pill-ok { background:rgba(6,214,160,0.1); color:var(--green); border:1px solid rgba(6,214,160,0.2); }
+.empty-state { text-align:center; padding:50px 20px; color:var(--muted); }
+.empty-icon { font-size:32px; margin-bottom:10px; }
+.empty-title { font-family:'Rajdhani',sans-serif; font-size:15px; font-weight:600; margin-bottom:5px; color:var(--text); opacity:0.5; }
+.empty-sub { font-size:12px; line-height:1.6; }
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-l">
+    <div class="logo">DG2</div>
+    <div>
+      <h1>DG2 Pressure Assessment</h1>
+      <div class="hdr-sub">Dwr Cymru Welsh Water &middot; Regulatory Reporting Tool</div>
+    </div>
+  </div>
+  <div class="reg-tag">⚖ REGULATORY</div>
+</div>
+
+<div class="sumbar">
+  <div class="sum-item">
+    <div class="sum-lbl">Total Properties</div>
+    <div class="sum-val" id="sumTotal" style="color:var(--accent2)">0</div>
+    <div class="sum-sub">across all DMAs</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">DG2 Reportable</div>
+    <div class="sum-val" id="sumDg2" style="color:var(--amber)">0</div>
+    <div class="sum-sub">below 15mh</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">GSS Payment</div>
+    <div class="sum-val" id="sumGss" style="color:var(--red)">0</div>
+    <div class="sum-sub">at or below 7mh</div>
+  </div>
+  <div class="sum-item">
+    <div class="sum-lbl">DMAs Assessed</div>
+    <div class="sum-val" id="sumDmas" style="color:var(--purple)">0</div>
+    <div class="sum-sub">loaded</div>
+  </div>
+</div>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab active" onclick="showTab('summary')" id="tab-summary">SUMMARY</button>
+  <button class="tab-add" onclick="addDma()">+ ADD DMA</button>
+</div>
+
+<div class="main">
+  <div class="summary-view active" id="view-summary">
+    <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">DMA OVERVIEW</div>
+    <div class="dma-grid" id="dmaGrid">
+      <div class="empty-state" style="grid-column:1/-1">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">No DMAs Added Yet</div>
+        <div class="empty-sub">Click <strong style="color:var(--accent2)">+ ADD DMA</strong> to begin your DG2 pressure assessment.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+var dmas = [];
+var activeTab = 'summary';
+var activeResTab = {};
+
+function addDma() {
+  var id = 'dma_' + Date.now();
+  var dma = { id:id, name:'DMA '+(dmas.length+1), loggerAod:'', minPres:'', props:[], total:0, dg2Count:0, gssCount:0, okCount:0 };
+  dmas.push(dma);
+  renderTabs();
+  showTab(id);
+}
+
+function removeDma(id, e) {
+  e.stopPropagation();
+  if(!confirm('Remove this DMA?')) return;
+  dmas = dmas.filter(function(d){ return d.id !== id; });
+  var el = document.getElementById('view-'+id);
+  if(el) el.remove();
+  renderTabs();
+  showTab('summary');
+  updateSummary();
+}
+
+function renderTabs() {
+  var bar = document.getElementById('tabBar');
+  bar.innerHTML = '<button class="tab '+(activeTab==='summary'?'active':'')+'" onclick="showTab(\'summary\')" id="tab-summary">SUMMARY</button>';
+  dmas.forEach(function(d) {
+    bar.innerHTML += '<button class="tab '+(activeTab===d.id?'active':'')+'" onclick="showTab(\''+d.id+'\')" id="tab-'+d.id+'">'+
+      escH(d.name)+
+      (d.total>0?' <span style="color:var(--muted);font-size:10px;">('+d.total+')</span>':'')+
+      ' <span class="tab-del" onclick="removeDma(\''+d.id+'\',event)">x</span></button>';
+  });
+  bar.innerHTML += '<button class="tab-add" onclick="addDma()">+ ADD DMA</button>';
+}
+
+function showTab(id) {
+  activeTab = id;
+  document.getElementById('view-summary').classList.remove('active');
+  document.querySelectorAll('.dma-view').forEach(function(v){ v.classList.remove('active'); });
+  if(id==='summary') {
+    document.getElementById('view-summary').classList.add('active');
+  } else {
+    var el = document.getElementById('view-'+id);
+    if(!el) { buildDmaView(id); el = document.getElementById('view-'+id); }
+    if(el) el.classList.add('active');
+  }
+  renderTabs();
+}
+
+function buildDmaView(id) {
+  var dma = dmas.find(function(d){ return d.id===id; });
+  if(!dma) return;
+  activeResTab[id] = 'dg2';
+  var main = document.querySelector('.main');
+  var div = document.createElement('div');
+  div.className = 'dma-view';
+  div.id = 'view-'+id;
+  div.innerHTML = `
+    <div class="dma-top">
+      <div class="dma-inputs">
+        <div>
+          <div class="slbl">DMA Name</div>
+          <div class="ig">
+            <input type="text" id="name_${id}" value="${escH(dma.name)}" placeholder="e.g. Gower DMA 1" oninput="updateName('${id}',this.value)" style="font-family:'Barlow',sans-serif;font-size:14px;">
+          </div>
+        </div>
+        <div>
+          <div class="slbl">Property Data</div>
+          <div class="ig">
+            <input type="file" id="file_${id}" accept=".csv" style="display:none" onchange="loadFile('${id}',this)">
+            <div class="upload-btn" onclick="document.getElementById('file_${id}').click()">UPLOAD CSV</div>
+            <div class="upload-status" id="status_${id}">No file loaded</div>
+          </div>
+        </div>
+        <div>
+          <div class="slbl">Logger / WPS Details</div>
+          <div class="ig">
+            <div class="il">Logger AOD</div>
+            <div class="ir">
+              <input type="number" id="aod_${id}" placeholder="e.g. 45" step="0.1" oninput="calcDma('${id}')">
+              <span class="un">mAOD</span>
+            </div>
+          </div>
+          <div class="ig">
+            <div class="il">Lowest Pressure (28 day)</div>
+            <div class="ir">
+              <input type="number" id="pres_${id}" placeholder="e.g. 12" step="0.1" oninput="calcDma('${id}')">
+              <span class="un">mh</span>
+            </div>
+          </div>
+          <div class="ig">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:3px;">Min Pressure at Logger</div>
+            <div class="calc-val" id="minPres_${id}">--</div>
+          </div>
+        </div>
+        <div>
+          <div class="slbl">Thresholds</div>
+          <div class="thresh-info">
+            <div style="color:var(--amber)">DG2 Reportable: &lt; 15mh</div>
+            <div style="color:var(--red)">GSS Payment: &le; 7mh</div>
+            <div style="color:var(--green)">Compliant: &ge; 15mh</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="dma-output">
+        <div class="dma-stats-row">
+          <div class="dst"><div class="dst-val" id="oTotal_${id}">--</div><div class="dst-unit">props</div><div class="dst-name">Total</div></div>
+          <div class="dst"><div class="dst-val" id="oOk_${id}" style="color:var(--green)">--</div><div class="dst-unit">props</div><div class="dst-name">Compliant</div></div>
+          <div class="dst"><div class="dst-val" id="oDg2_${id}" style="color:var(--amber)">--</div><div class="dst-unit">props</div><div class="dst-name">DG2 Reportable</div></div>
+          <div class="dst"><div class="dst-val" id="oGss_${id}" style="color:var(--red)">--</div><div class="dst-unit">props</div><div class="dst-name">GSS Payment</div></div>
+        </div>
+
+        <div class="res-tabs">
+          <button class="res-tab active-dg2" id="rtDg2_${id}" onclick="setResTab('${id}','dg2')">DG2 REPORTABLE <span class="res-tab-count" id="rtDg2Count_${id}">(0)</span></button>
+          <button class="res-tab" id="rtGss_${id}" onclick="setResTab('${id}','gss')">GSS PAYMENT <span class="res-tab-count" id="rtGssCount_${id}">(0)</span></button>
+          <button class="res-tab" id="rtOk_${id}" onclick="setResTab('${id}','ok')">COMPLIANT <span class="res-tab-count" id="rtOkCount_${id}">(0)</span></button>
+        </div>
+
+        <div class="prop-filter">
+          <button class="export-btn" onclick="exportList('${id}','dg2')">EXPORT DG2 LIST</button>
+          <button class="export-btn export-gss" onclick="exportList('${id}','gss')">EXPORT GSS LIST</button>
+          <span class="prop-count" id="propCount_${id}">0 properties shown</span>
+        </div>
+
+        <div class="prop-table-wrap">
+          <div class="empty-state" id="emptyState_${id}">
+            <div class="empty-icon">📂</div>
+            <div class="empty-title">No Data Loaded</div>
+            <div class="empty-sub">Upload a property CSV and enter the logger AOD<br>and lowest recorded pressure over the 28 day period.</div>
+          </div>
+          <table id="propTable_${id}" style="display:none">
+            <thead>
+              <tr>
+                <th>STATUS</th>
+                <th>ADDRESS</th>
+                <th>POSTCODE</th>
+                <th>PROP AOD (m)</th>
+                <th>MIN PRESSURE (mh)</th>
+              </tr>
+            </thead>
+            <tbody id="propBody_${id}"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
+  main.appendChild(div);
+}
+
+function escH(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function updateName(id, val) {
+  var dma = dmas.find(function(d){ return d.id===id; });
+  if(dma) { dma.name=val; renderTabs(); updateSummary(); }
+}
+
+function loadFile(id, input) {
+  var dma = dmas.find(function(d){ return d.id===id; });
+  if(!dma||!input.files[0]) return;
+  document.getElementById('status_'+id).textContent='Loading...';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var text = e.target.result;
+    var rows = text.split('\n');
+    var headers = rows[0].split(',').map(function(h){ return h.trim().replace(/^"|"$/g,''); });
+    var zIdx = headers.indexOf('ZCOORD');
+    var bnum = headers.indexOf('building_num');
+    var bnam = headers.indexOf('build_nam');
+    var snam = headers.indexOf('street_nam');
+    var ptow = headers.indexOf('posttown_nam');
+    var pcod = headers.indexOf('postcode');
+    var org  = headers.indexOf('org_name');
+    var subB = headers.indexOf('sub_build_nam');
+    if(zIdx<0){ document.getElementById('status_'+id).textContent='Error: ZCOORD column not found'; return; }
+    dma.props=[];
+    for(var i=1;i<rows.length;i++){
+      if(!rows[i].trim()) continue;
+      var cols = parseCSV(rows[i]);
+      var z = parseFloat(cols[zIdx]);
+      if(isNaN(z)) continue;
+      var addr = buildAddr(cols,bnum,bnam,subB,org,snam,ptow);
+      var pc = cols[pcod]?cols[pcod].trim().replace(/^"|"$/g,''):'';
+      dma.props.push({z:z, addr:addr, pc:pc});
+    }
+    document.getElementById('status_'+id).textContent=dma.props.length+' properties loaded';
+    calcDma(id);
+  };
+  reader.readAsText(input.files[0]);
+}
+
+function parseCSV(row) {
+  var result=[],current='',inQ=false;
+  for(var i=0;i<row.length;i++){
+    var ch=row[i];
+    if(ch==='"'){inQ=!inQ;}
+    else if(ch===','&&!inQ){result.push(current.trim());current='';}
+    else{current+=ch;}
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function buildAddr(cols,bnum,bnam,subB,org,snam,ptow){
+  var parts=[];
+  var get=function(i){return(i>=0&&cols[i])?cols[i].trim().replace(/^"|"$/g,''):''};
+  if(get(org)) parts.push(get(org));
+  if(get(subB)) parts.push(get(subB));
+  if(get(bnum)) parts.push(get(bnum));
+  if(get(bnam)) parts.push(get(bnam));
+  if(get(snam)) parts.push(get(snam));
+  if(get(ptow)) parts.push(get(ptow));
+  return parts.filter(Boolean).join(', ');
+}
+
+function calcDma(id) {
+  var dma = dmas.find(function(d){ return d.id===id; });
+  if(!dma) return;
+  var aod  = parseFloat(document.getElementById('aod_'+id).value);
+  var pres = parseFloat(document.getElementById('pres_'+id).value);
+
+  if(!isNaN(aod)&&!isNaN(pres)) {
+    var hgl = aod + pres;
+    dma.aod=aod; dma.pres=pres; dma.hgl=hgl;
+    document.getElementById('minPres_'+id).textContent=pres.toFixed(1)+' mh at logger ('+hgl.toFixed(2)+' mAOD HGL)';
+  } else {
+    dma.hgl=null;
+    document.getElementById('minPres_'+id).textContent='--';
+  }
+
+  var total=dma.props.length, dg2=0, gss=0, ok=0;
+  dma.props.forEach(function(p){
+    if(dma.hgl!==null){
+      p.minPres = dma.hgl - p.z;
+      if(p.minPres<=7){ p.cat='gss'; gss++; dg2++; }
+      else if(p.minPres<15){ p.cat='dg2'; dg2++; }
+      else{ p.cat='ok'; ok++; }
+    } else {
+      p.minPres=null; p.cat='unknown';
+    }
+  });
+
+  dma.total=total; dma.dg2Count=dg2; dma.gssCount=gss; dma.okCount=ok;
+
+  document.getElementById('oTotal_'+id).textContent=total>0?total.toLocaleString():'--';
+  document.getElementById('oDg2_'+id).textContent=total>0?dg2.toLocaleString():'--';
+  document.getElementById('oGss_'+id).textContent=total>0?gss.toLocaleString():'--';
+  document.getElementById('oOk_'+id).textContent=total>0?ok.toLocaleString():'--';
+  document.getElementById('rtDg2Count_'+id).textContent='('+dg2+')';
+  document.getElementById('rtGssCount_'+id).textContent='('+gss+')';
+  document.getElementById('rtOkCount_'+id).textContent='('+ok+')';
+
+  renderTable(id);
+  updateSummary();
+}
+
+function setResTab(id, tab) {
+  activeResTab[id]=tab;
+  document.getElementById('rtDg2_'+id).className='res-tab'+(tab==='dg2'?' active-dg2':'');
+  document.getElementById('rtGss_'+id).className='res-tab'+(tab==='gss'?' active-gss':'');
+  document.getElementById('rtOk_'+id).className='res-tab'+(tab==='ok'?' active-ok':'');
+  renderTable(id);
+}
+
+function renderTable(id) {
+  var dma=dmas.find(function(d){return d.id===id;});
+  if(!dma||dma.props.length===0){
+    document.getElementById('emptyState_'+id).style.display='block';
+    document.getElementById('propTable_'+id).style.display='none';
+    return;
+  }
+  document.getElementById('emptyState_'+id).style.display='none';
+  document.getElementById('propTable_'+id).style.display='table';
+
+  var tab=activeResTab[id]||'dg2';
+  var filtered=dma.props.filter(function(p){ return tab==='dg2' ? (p.cat==='dg2'||p.cat==='gss') : p.cat===tab; });
+  filtered.sort(function(a,b){return a.minPres-b.minPres;});
+  document.getElementById('propCount_'+id).textContent=filtered.length.toLocaleString()+' properties shown';
+
+  var html='';
+  filtered.forEach(function(p){
+    var presStr=p.minPres!==null?p.minPres.toFixed(1)+' mh':'--';
+    var presCol=p.cat==='gss'?'color:var(--red)':p.cat==='dg2'?'color:var(--amber)':'color:var(--green)';
+    var pillCls=p.cat==='gss'?'pill-gss':p.cat==='dg2'?'pill-dg2':'pill-ok';
+    var pillTxt=p.cat==='gss'?'GSS':p.cat==='dg2'?'DG2':'OK';
+    var rowCls=p.cat==='gss'?'gss':p.cat==='dg2'?'dg2':'';
+    html+='<tr class="'+rowCls+'">'+
+      '<td><span class="status-pill '+pillCls+'">'+pillTxt+'</span></td>'+
+      '<td>'+escH(p.addr||'--')+'</td>'+
+      '<td><span style="font-family:monospace;font-size:11px">'+escH(p.pc)+'</span></td>'+
+      '<td style="font-family:monospace;font-size:12px">'+p.z.toFixed(2)+'</td>'+
+      '<td style="font-family:monospace;font-size:12px;'+presCol+'">'+presStr+'</td>'+
+      '</tr>';
+  });
+  document.getElementById('propBody_'+id).innerHTML=html;
+}
+
+function exportList(id, type) {
+  var dma=dmas.find(function(d){return d.id===id;});
+  if(!dma||dma.props.length===0){alert('No data to export');return;}
+  var list=dma.props.filter(function(p){ return type==='dg2' ? (p.cat==='dg2'||p.cat==='gss') : p.cat===type; });
+  if(list.length===0){alert('No properties in this category');return;}
+  list.sort(function(a,b){return a.minPres-b.minPres;});
+
+  var typeLabel=type==='gss'?'GSS Payment':'DG2 Reportable';
+  var rows=[];
+  rows.push('DG2 Pressure Assessment - '+dma.name);
+  rows.push('Export Type: '+typeLabel);
+  rows.push('Generated: '+new Date().toLocaleString());
+  rows.push('Logger AOD: '+(dma.aod||'--')+' mAOD');
+  rows.push('Lowest Pressure (28 day): '+(dma.pres||'--')+' mh');
+  rows.push('Total '+typeLabel+': '+list.length);
+  rows.push('');
+  rows.push('STATUS,ADDRESS,POSTCODE,PROP AOD (m),MIN PRESSURE (mh)');
+  list.forEach(function(p){
+    var presStr=p.minPres!==null?p.minPres.toFixed(1):'--';
+    rows.push(typeLabel.toUpperCase()+',"'+(p.addr||'').replace(/"/g,'""')+'",'+p.pc+','+p.z.toFixed(2)+','+presStr);
+  });
+
+  var csv=rows.join('\n');
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='dg2-'+type+'-'+dma.name.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'-'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+function updateSummary() {
+  var total=0,dg2=0,gss=0;
+  dmas.forEach(function(d){total+=d.total||0;dg2+=d.dg2Count||0;gss+=d.gssCount||0;});
+  document.getElementById('sumTotal').textContent=total.toLocaleString();
+  document.getElementById('sumDg2').textContent=dg2.toLocaleString();
+  document.getElementById('sumGss').textContent=gss.toLocaleString();
+  document.getElementById('sumDmas').textContent=dmas.length;
+
+  var grid=document.getElementById('dmaGrid');
+  if(dmas.length===0){
+    grid.innerHTML='<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">📊</div><div class="empty-title">No DMAs Added Yet</div><div class="empty-sub">Click <strong style="color:var(--accent2)">+ ADD DMA</strong> to begin your DG2 pressure assessment.</div></div>';
+    return;
+  }
+  var html='';
+  dmas.forEach(function(d){
+    var hasData=d.total>0;
+    html+='<div class="dma-card '+(hasData?'has-data':'')+'" onclick="showTab(\''+d.id+'\')">'+
+      '<div class="dma-card-name">'+escH(d.name)+'</div>'+
+      '<div class="dma-stat"><span class="dma-stat-lbl">TOTAL</span><span class="dma-stat-val" style="color:var(--accent2)">'+(hasData?d.total.toLocaleString():'--')+'</span></div>'+
+      '<div class="dma-stat"><span class="dma-stat-lbl">DG2</span><span class="dma-stat-val" style="color:var(--amber)">'+(hasData?(d.dg2Count||0).toLocaleString():'--')+'</span></div>'+
+      '<div class="dma-stat"><span class="dma-stat-lbl">GSS</span><span class="dma-stat-val" style="color:var(--red)">'+(hasData?(d.gssCount||0).toLocaleString():'--')+'</span></div>'+
+    '</div>';
+  });
+  grid.innerHTML=html;
+}
+</script>
+</body>
+</html>
