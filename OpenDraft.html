@@ -1,0 +1,1912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenDraft — 2D CAD Tool</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --panel: #13161d;
+    --panel2: #1a1e28;
+    --border: #2a2f3e;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #7fff6b;
+    --text: #c8d0e0;
+    --text-dim: #5a6278;
+    --grid-minor: rgba(40,50,70,0.6);
+    --grid-major: rgba(60,75,100,0.5);
+    --snap: #ffdd00;
+    --canvas-bg: #0a0c10;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── TITLE BAR ── */
+  #titlebar {
+    height: 36px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  #logo {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 15px;
+    color: var(--accent);
+    letter-spacing: 2px;
+  }
+  #logo span { color: var(--accent2); }
+
+  .menu-btn {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .menu-btn:hover { background: var(--panel2); color: var(--text); }
+
+  #status-right {
+    margin-left: auto;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  #status-right span { color: var(--accent); }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    height: 44px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .tb-sep {
+    width: 1px;
+    height: 24px;
+    background: var(--border);
+    margin: 0 6px;
+  }
+
+  .tb-btn {
+    width: 34px;
+    height: 32px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .tb-btn:hover { background: var(--panel2); color: var(--text); border-color: var(--border); }
+  .tb-btn.active { background: rgba(0,212,255,0.1); color: var(--accent); border-color: rgba(0,212,255,0.3); }
+  .tb-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    bottom: -28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #000;
+    color: var(--text);
+    font-size: 10px;
+    font-family: 'Barlow', sans-serif;
+    padding: 3px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 100;
+    border: 1px solid var(--border);
+    pointer-events: none;
+  }
+
+  .tb-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    padding: 0 4px;
+    text-transform: uppercase;
+  }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ── LEFT PANEL ── */
+  #left-panel {
+    width: 48px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 8px 0;
+    gap: 2px;
+    flex-shrink: 0;
+  }
+
+  .lp-btn {
+    width: 36px;
+    height: 36px;
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: var(--text-dim);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    transition: all 0.15s;
+    position: relative;
+  }
+  .lp-btn:hover { background: var(--panel2); color: var(--text); border-color: var(--border); }
+  .lp-btn.active { background: rgba(0,212,255,0.12); color: var(--accent); border-color: rgba(0,212,255,0.35); box-shadow: 0 0 8px rgba(0,212,255,0.15); }
+  .lp-sep { width: 28px; height: 1px; background: var(--border); margin: 4px 0; }
+
+  .lp-btn[title]:hover::after {
+    content: attr(title);
+    position: absolute;
+    left: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #000;
+    color: var(--text);
+    font-size: 10px;
+    font-family: 'Barlow', sans-serif;
+    padding: 3px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+    z-index: 200;
+    border: 1px solid var(--border);
+  }
+
+  /* ── CANVAS AREA ── */
+  #canvas-wrap {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: var(--canvas-bg);
+  }
+
+  #canvas {
+    position: absolute;
+    top: 0; left: 0;
+    cursor: crosshair;
+  }
+
+  /* ── COORD BAR (bottom) ── */
+  #coord-bar {
+    height: 26px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 20px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+  .coord-item { color: var(--text-dim); }
+  .coord-item span { color: var(--accent3); }
+  #cmd-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+  #cmd-prompt { color: var(--accent2); font-size: 11px; font-family: 'Share Tech Mono', monospace; }
+  #cmd-input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--accent);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    width: 280px;
+    caret-color: var(--accent);
+  }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    width: 200px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .rp-section {
+    border-bottom: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .rp-header {
+    padding: 7px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    background: var(--panel2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .rp-body { padding: 8px 10px; }
+
+  .prop-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(42,47,62,0.5);
+  }
+  .prop-label { color: var(--text-dim); font-size: 11px; }
+  .prop-val { color: var(--text); font-family: 'Share Tech Mono', monospace; font-size: 11px; }
+
+  .layer-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    cursor: pointer;
+    border-radius: 3px;
+    padding: 4px 4px;
+    transition: background 0.1s;
+  }
+  .layer-row:hover { background: var(--panel2); }
+  .layer-row.active { background: rgba(0,212,255,0.08); }
+  .layer-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .layer-name { font-size: 11px; flex: 1; }
+  .layer-vis { color: var(--text-dim); font-size: 12px; cursor: pointer; }
+
+  /* snap indicator */
+  #snap-indicator {
+    position: absolute;
+    pointer-events: none;
+    display: none;
+    z-index: 50;
+  }
+  #snap-indicator::before {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    border: 2px solid var(--snap);
+    top: -6px; left: -6px;
+    border-radius: 2px;
+  }
+  #snap-label {
+    position: absolute;
+    top: 8px; left: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--snap);
+    white-space: nowrap;
+  }
+
+  /* selection box */
+  #sel-box {
+    position: absolute;
+    border: 1px dashed var(--accent);
+    background: rgba(0,212,255,0.05);
+    pointer-events: none;
+    display: none;
+  }
+
+  /* tool modal */
+  #tool-display {
+    position: absolute;
+    top: 10px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(13,15,20,0.85);
+    border: 1px solid var(--border);
+    border-top: 2px solid var(--accent);
+    padding: 6px 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 1px;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+  }
+
+  /* input box for length/angle */
+  #dynamic-input {
+    position: absolute;
+    display: none;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    padding: 4px 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    pointer-events: none;
+    z-index: 80;
+    min-width: 80px;
+  }
+</style>
+</head>
+<body>
+
+<!-- TITLE BAR -->
+<div id="titlebar">
+  <div id="logo">OPEN<span>DRAFT</span></div>
+  <button class="menu-btn">File</button>
+  <button class="menu-btn">Edit</button>
+  <button class="menu-btn">View</button>
+  <button class="menu-btn">Draw</button>
+  <button class="menu-btn">Modify</button>
+  <div id="status-right">
+    <span id="tb-zoom-label">ZOOM: 1.00×</span>
+    <span id="tb-snap-label">SNAP: ON</span>
+    <span id="tb-ortho-label">ORTHO: OFF</span>
+  </div>
+</div>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="tb-label">File</span>
+  <button class="tb-btn" title="New" onclick="newFile()">🗋</button>
+  <button class="tb-btn" title="Save as PNG" onclick="savePNG()">💾</button>
+  <button class="tb-btn" title="Export PDF" onclick="exportPDF()" style="font-size:11px;font-weight:600;font-family:'Barlow',sans-serif;">PDF</button>
+  <button class="tb-btn" title="Export DXF (AutoCAD/FreeCAD)" onclick="exportDXF()" style="font-size:11px;font-weight:600;font-family:'Barlow',sans-serif;">DXF</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Edit</span>
+  <button class="tb-btn" title="Undo (Ctrl+Z)" onclick="undo()">↩</button>
+  <button class="tb-btn" title="Redo (Ctrl+Y)" onclick="redo()">↪</button>
+  <button class="tb-btn" title="Delete Selected (Del)" onclick="deleteSelected()">🗑</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">View</span>
+  <button class="tb-btn" title="Zoom In (+)" onclick="zoomAt(1.25)">⊕</button>
+  <button class="tb-btn" title="Zoom Out (-)" onclick="zoomAt(0.8)">⊖</button>
+  <button class="tb-btn" title="Fit All (F)" onclick="fitAll()">⊞</button>
+  <button class="tb-btn" id="btn-grid" title="Toggle Grid (G)" onclick="toggleGrid()">⊞</button>
+  <button class="tb-btn" id="btn-snap" title="Toggle Snap (S)" onclick="toggleSnap()" class="active">🧲</button>
+  <button class="tb-btn" id="btn-ortho" title="Ortho Mode (O)" onclick="toggleOrtho()">⊣</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Line weight</span>
+  <select id="lw-select" style="background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:3px 5px;border-radius:3px;font-size:11px;outline:none;">
+    <option value="0.5">0.5</option>
+    <option value="1" selected>1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+  </select>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Color</span>
+  <input type="color" id="stroke-color" value="#00d4ff" style="width:28px;height:24px;border:1px solid var(--border);border-radius:3px;cursor:pointer;background:none;padding:1px;">
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- LEFT TOOLS -->
+  <div id="left-panel">
+    <button class="lp-btn active" id="tool-select" title="Select [ESC]" onclick="setTool('select')">↖</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="tool-line" title="Line [L]" onclick="setTool('line')">╱</button>
+    <button class="lp-btn" id="tool-polyline" title="Polyline [PL]" onclick="setTool('polyline')">⌒</button>
+    <button class="lp-btn" id="tool-rect" title="Rectangle [REC]" onclick="setTool('rect')">▭</button>
+    <button class="lp-btn" id="tool-circle" title="Circle [C]" onclick="setTool('circle')">○</button>
+    <button class="lp-btn" id="tool-arc" title="Arc [ARC]" onclick="setTool('arc')">◠</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="tool-text" title="Text [T / DT]" onclick="setTool('text')">T</button>
+    <button class="lp-btn" id="tool-dim" title="Dimension [DLI]" onclick="setTool('dim')">↔</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="tool-move" title="Move [M]" onclick="setTool('move')">✛</button>
+    <button class="lp-btn" id="tool-copy" title="Copy [CO]" onclick="setTool('copy')">⿻</button>
+    <button class="lp-btn" id="tool-rotate" title="Rotate [RO]" onclick="setTool('rotate')">↻</button>
+    <button class="lp-btn" id="tool-measure" title="Measure [DI]" onclick="setTool('measure')">📏</button>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="snap-indicator"><div id="snap-label">END</div></div>
+    <div id="sel-box"></div>
+    <div id="tool-display">SELECT</div>
+    <div id="dynamic-input"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
+    <div class="rp-section">
+      <div class="rp-header">Properties</div>
+      <div class="rp-body" id="props-body">
+        <div class="prop-row"><span class="prop-label">Type</span><span class="prop-val" id="prop-type">—</span></div>
+        <div class="prop-row"><span class="prop-label">Length</span><span class="prop-val" id="prop-len">—</span></div>
+        <div class="prop-row"><span class="prop-label">Angle</span><span class="prop-val" id="prop-ang">—</span></div>
+        <div class="prop-row"><span class="prop-label">X</span><span class="prop-val" id="prop-x">—</span></div>
+        <div class="prop-row"><span class="prop-label">Y</span><span class="prop-val" id="prop-y">—</span></div>
+        <div class="prop-row"><span class="prop-label">Layer</span><span class="prop-val" id="prop-layer">0</span></div>
+      </div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-header">Layers <button style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:14px;" onclick="addLayer()">+</button></div>
+      <div class="rp-body" id="layers-body"></div>
+    </div>
+    <div class="rp-section" style="flex:1;overflow:auto;">
+      <div class="rp-header">Objects</div>
+      <div class="rp-body" id="objects-body" style="overflow:auto;max-height:200px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);"></div>
+    </div>
+    <div class="rp-section">
+      <div class="rp-header">Snap Settings</div>
+      <div class="rp-body">
+        <label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;cursor:pointer;">
+          <input type="checkbox" id="snap-end" checked> Endpoint
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;cursor:pointer;">
+          <input type="checkbox" id="snap-mid" checked> Midpoint
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;cursor:pointer;">
+          <input type="checkbox" id="snap-cen" checked> Center
+        </label>
+        <label style="display:flex;gap:6px;align-items:center;padding:2px 0;font-size:11px;cursor:pointer;">
+          <input type="checkbox" id="snap-grid" checked> Grid
+        </label>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- COORD BAR -->
+<div id="coord-bar">
+  <div class="coord-item">X: <span id="cx">0.00</span></div>
+  <div class="coord-item">Y: <span id="cy">0.00</span></div>
+  <div class="coord-item">Δ: <span id="cdist">—</span></div>
+  <div class="coord-item">∠: <span id="cang">—</span></div>
+  <div class="coord-item">Objects: <span id="cobj">0</span></div>
+  <div id="cmd-input-wrap">
+    <span id="cmd-prompt">⌨</span>
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type command (L, PL, REC, C, ARC, M, CO, E…)">
+  </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────────────
+// STATE
+// ────────────────────────────────────────────────────────
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+
+let W, H;
+let pan = { x: 0, y: 0 };
+let zoom = 1;
+let tool = 'select';
+let snap = true;
+let snapGridOn = true;
+let ortho = false;
+let gridOn = true;
+let gridSize = 20; // world units
+
+let objects = [];
+let selected = [];
+let undoStack = [];
+let redoStack = [];
+
+let layers = [
+  { name: '0', color: '#00d4ff', visible: true },
+  { name: 'Construction', color: '#ff6b35', visible: true },
+  { name: 'Dimensions', color: '#7fff6b', visible: true },
+];
+let activeLayer = 0;
+
+// Drawing state
+let drawing = false;
+let pts = []; // in-progress points (world coords)
+let mouseW = { x: 0, y: 0 }; // mouse in world coords
+let snapPt = null;
+let snapType = '';
+
+// Selection drag
+let selDrag = false;
+let selStart = null;
+
+// Move state
+let moveStart = null;
+let moveObjs = null;
+
+// ────────────────────────────────────────────────────────
+// RESIZE
+// ────────────────────────────────────────────────────────
+function resize() {
+  const r = wrap.getBoundingClientRect();
+  W = r.width; H = r.height;
+  canvas.width = W;
+  canvas.height = H;
+  if (pan.x === 0 && pan.y === 0) { pan.x = W/2; pan.y = H/2; }
+  render();
+}
+window.addEventListener('resize', resize);
+
+// ────────────────────────────────────────────────────────
+// COORD TRANSFORMS
+// ────────────────────────────────────────────────────────
+function w2s(p) { return { x: p.x * zoom + pan.x, y: -p.y * zoom + pan.y }; }
+function s2w(p) { return { x: (p.x - pan.x) / zoom, y: -(p.y - pan.y) / zoom }; }
+function dist(a, b) { return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2); }
+function angle(a, b) { return Math.atan2(b.y-a.y, b.x-a.x) * 180 / Math.PI; }
+function wDist(a, b) { return dist(a, b); }
+
+// ────────────────────────────────────────────────────────
+// SNAP ENGINE
+// ────────────────────────────────────────────────────────
+function computeSnap(rawW) {
+  const threshold = 12 / zoom;
+  let best = null;
+  let bestDist = threshold;
+  let bestType = '';
+
+  if (document.getElementById('snap-grid').checked && gridOn) {
+    const gx = Math.round(rawW.x / gridSize) * gridSize;
+    const gy = Math.round(rawW.y / gridSize) * gridSize;
+    const gp = { x: gx, y: gy };
+    const d = dist(rawW, gp);
+    if (d < bestDist) { best = gp; bestDist = d; bestType = 'GRID'; }
+  }
+
+  for (const obj of objects) {
+    if (!layers[obj.layerIdx].visible) continue;
+    const snaps = getSnapPoints(obj);
+    for (const [pt, type] of snaps) {
+      const d = dist(rawW, pt);
+      if (d < bestDist) { best = pt; bestDist = d; bestType = type; }
+    }
+  }
+
+  // Ortho constraint from last point
+  if (ortho && pts.length > 0) {
+    const last = pts[pts.length-1];
+    const dx = Math.abs(rawW.x - last.x);
+    const dy = Math.abs(rawW.y - last.y);
+    if (!best) {
+      if (dx > dy) best = { x: rawW.x, y: last.y };
+      else best = { x: last.x, y: rawW.y };
+      bestType = 'ORTHO';
+    }
+  }
+
+  snapPt = best || rawW;
+  snapType = bestType;
+  return snapPt;
+}
+
+function getSnapPoints(obj) {
+  const pts = [];
+  if (obj.type === 'line') {
+    if (document.getElementById('snap-end').checked) {
+      pts.push([obj.p1, 'END'], [obj.p2, 'END']);
+    }
+    if (document.getElementById('snap-mid').checked) {
+      pts.push([{ x: (obj.p1.x+obj.p2.x)/2, y: (obj.p1.y+obj.p2.y)/2 }, 'MID']);
+    }
+  } else if (obj.type === 'circle') {
+    if (document.getElementById('snap-cen').checked) {
+      pts.push([obj.center, 'CEN']);
+    }
+    if (document.getElementById('snap-end').checked) {
+      pts.push(
+        [{ x: obj.center.x + obj.radius, y: obj.center.y }, 'QUA'],
+        [{ x: obj.center.x - obj.radius, y: obj.center.y }, 'QUA'],
+        [{ x: obj.center.x, y: obj.center.y + obj.radius }, 'QUA'],
+        [{ x: obj.center.x, y: obj.center.y - obj.radius }, 'QUA'],
+      );
+    }
+  } else if (obj.type === 'rect') {
+    const { p1, p2 } = obj;
+    const corners = [p1, {x:p2.x,y:p1.y}, p2, {x:p1.x,y:p2.y}];
+    if (document.getElementById('snap-end').checked)
+      corners.forEach(c => pts.push([c, 'END']));
+    if (document.getElementById('snap-mid').checked) {
+      pts.push([{x:(p1.x+p2.x)/2, y:p1.y}, 'MID']);
+      pts.push([{x:(p1.x+p2.x)/2, y:p2.y}, 'MID']);
+      pts.push([{x:p1.x, y:(p1.y+p2.y)/2}, 'MID']);
+      pts.push([{x:p2.x, y:(p1.y+p2.y)/2}, 'MID']);
+    }
+    if (document.getElementById('snap-cen').checked)
+      pts.push([{x:(p1.x+p2.x)/2, y:(p1.y+p2.y)/2}, 'CEN']);
+  } else if (obj.type === 'polyline') {
+    if (document.getElementById('snap-end').checked) {
+      obj.pts.forEach(p => pts.push([p, 'END']));
+    }
+    if (document.getElementById('snap-mid').checked) {
+      for (let i=0; i<obj.pts.length-1; i++) {
+        pts.push([{ x:(obj.pts[i].x+obj.pts[i+1].x)/2, y:(obj.pts[i].y+obj.pts[i+1].y)/2 }, 'MID']);
+      }
+    }
+  }
+  return pts;
+}
+
+// ────────────────────────────────────────────────────────
+// RENDER
+// ────────────────────────────────────────────────────────
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Background
+  ctx.fillStyle = '#0a0c10';
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  if (gridOn) drawGrid();
+
+  // Objects
+  ctx.save();
+  for (const obj of objects) {
+    if (!layers[obj.layerIdx].visible) continue;
+    drawObject(obj, selected.includes(obj));
+  }
+  ctx.restore();
+
+  // Preview
+  drawPreview();
+
+  // Snap indicator
+  updateSnapIndicator();
+
+  // Update coord bar
+  updateCoords();
+}
+
+function drawGrid() {
+  const minor = gridSize * zoom;
+  const major = gridSize * 5 * zoom;
+
+  const ox = pan.x % minor;
+  const oy = pan.y % minor;
+
+  ctx.save();
+
+  // minor
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid-minor').trim();
+  ctx.lineWidth = 0.5;
+  ctx.beginPath();
+  for (let x = ox; x < W; x += minor) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = oy; y < H; y += minor) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+
+  // major
+  const mox = pan.x % major;
+  const moy = pan.y % major;
+  ctx.strokeStyle = 'rgba(60,75,100,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = mox; x < W; x += major) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
+  for (let y = moy; y < H; y += major) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+  ctx.stroke();
+
+  // Origin cross
+  const os = w2s({x:0,y:0});
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(os.x - 12, os.y); ctx.lineTo(os.x + 12, os.y);
+  ctx.moveTo(os.x, os.y - 12); ctx.lineTo(os.x, os.y + 12);
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawObject(obj, isSelected) {
+  const lc = layers[obj.layerIdx]?.color || '#00d4ff';
+  ctx.strokeStyle = isSelected ? '#ffffff' : (obj.color || lc);
+  ctx.lineWidth = (obj.lw || 1) * (isSelected ? 1.5 : 1);
+  ctx.fillStyle = 'transparent';
+
+  if (obj.type === 'line') {
+    const a = w2s(obj.p1), b = w2s(obj.p2);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    if (isSelected) {
+      drawHandle(a); drawHandle(b);
+    }
+  } else if (obj.type === 'rect') {
+    const a = w2s(obj.p1), b = w2s(obj.p2);
+    ctx.beginPath();
+    ctx.rect(Math.min(a.x,b.x), Math.min(a.y,b.y), Math.abs(b.x-a.x), Math.abs(b.y-a.y));
+    ctx.stroke();
+    if (isSelected) { drawHandle(a); drawHandle(b); drawHandle({x:b.x,y:a.y}); drawHandle({x:a.x,y:b.y}); }
+  } else if (obj.type === 'circle') {
+    const c = w2s(obj.center);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, obj.radius * zoom, 0, Math.PI * 2);
+    ctx.stroke();
+    if (isSelected) {
+      drawHandle(c);
+      drawHandle(w2s({x:obj.center.x+obj.radius, y:obj.center.y}));
+    }
+  } else if (obj.type === 'arc') {
+    const c = w2s(obj.center);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, obj.radius * zoom, -obj.endAngle * Math.PI/180, -obj.startAngle * Math.PI/180);
+    ctx.stroke();
+  } else if (obj.type === 'polyline') {
+    if (obj.pts.length < 2) return;
+    ctx.beginPath();
+    const s0 = w2s(obj.pts[0]);
+    ctx.moveTo(s0.x, s0.y);
+    for (let i = 1; i < obj.pts.length; i++) {
+      const si = w2s(obj.pts[i]);
+      ctx.lineTo(si.x, si.y);
+    }
+    if (obj.closed) ctx.closePath();
+    ctx.stroke();
+    if (isSelected) obj.pts.forEach(p => drawHandle(w2s(p)));
+  } else if (obj.type === 'text') {
+    const s = w2s(obj.pos);
+    ctx.fillStyle = obj.color || lc;
+    ctx.font = `${(obj.size||12) * zoom}px Barlow, sans-serif`;
+    ctx.fillText(obj.text, s.x, s.y);
+    if (isSelected) drawHandle(s);
+  } else if (obj.type === 'dim') {
+    drawDimension(obj, isSelected);
+  }
+}
+
+function drawHandle(s) {
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.rect(s.x - 4, s.y - 4, 8, 8);
+  ctx.fillStyle = 'rgba(0,212,255,0.15)';
+  ctx.fill();
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+}
+
+function drawDimension(obj, isSelected) {
+  const a = w2s(obj.p1), b = w2s(obj.p2);
+  const offset = 20;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.sqrt(dx*dx+dy*dy);
+  if (len < 1) return;
+  const nx = -dy/len * offset, ny = dx/len * offset;
+
+  ctx.strokeStyle = layers[obj.layerIdx]?.color || '#7fff6b';
+  ctx.lineWidth = 0.75;
+
+  ctx.beginPath();
+  ctx.moveTo(a.x + nx, a.y + ny);
+  ctx.lineTo(b.x + nx, b.y + ny);
+  ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + nx, a.y + ny);
+  ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + nx, b.y + ny);
+  ctx.stroke();
+
+  // Arrows
+  const ang = Math.atan2(b.y - a.y, b.x - a.x);
+  const asize = 8;
+  ctx.beginPath();
+  ctx.moveTo(a.x+nx, a.y+ny);
+  ctx.lineTo(a.x+nx + Math.cos(ang)*asize, a.y+ny + Math.sin(ang)*asize);
+  ctx.moveTo(b.x+nx, b.y+ny);
+  ctx.lineTo(b.x+nx - Math.cos(ang)*asize, b.y+ny - Math.sin(ang)*asize);
+  ctx.stroke();
+
+  // Label
+  const wd = wDist(obj.p1, obj.p2).toFixed(2);
+  const mx = (a.x+b.x)/2 + nx;
+  const my = (a.y+b.y)/2 + ny;
+  ctx.fillStyle = layers[obj.layerIdx]?.color || '#7fff6b';
+  ctx.font = `${11 * Math.min(zoom, 1.5)}px Share Tech Mono, monospace`;
+  ctx.textAlign = 'center';
+  ctx.fillText(wd, mx, my - 6);
+  ctx.textAlign = 'left';
+}
+
+function drawPreview() {
+  if (!drawing || pts.length === 0) return;
+  const cur = snapPt || mouseW;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0,212,255,0.6)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 3]);
+
+  if (tool === 'line' || tool === 'dim' || tool === 'measure') {
+    const a = w2s(pts[0]), b = w2s(cur);
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    // dynamic length label
+    const d = wDist(pts[0], cur).toFixed(2);
+    const ang = angle(pts[0], cur).toFixed(1);
+    showDynamicInput(b, `${d}  ∠${ang}°`);
+  } else if (tool === 'rect') {
+    const a = w2s(pts[0]), b = w2s(cur);
+    ctx.beginPath();
+    ctx.rect(Math.min(a.x,b.x), Math.min(a.y,b.y), Math.abs(b.x-a.x), Math.abs(b.y-a.y));
+    ctx.stroke();
+  } else if (tool === 'circle') {
+    const c = w2s(pts[0]);
+    const r = dist(w2s(pts[0]), w2s(cur));
+    ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI*2); ctx.stroke();
+    showDynamicInput(w2s(cur), `r=${wDist(pts[0],cur).toFixed(2)}`);
+  } else if (tool === 'arc') {
+    if (pts.length === 1) {
+      const c = w2s(pts[0]), b = w2s(cur);
+      ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    } else if (pts.length === 2) {
+      const c = w2s(pts[0]);
+      const r = dist(w2s(pts[0]), w2s(pts[1])) ;
+      const startA = Math.atan2(-(pts[1].y - pts[0].y), pts[1].x - pts[0].x);
+      const endA = Math.atan2(-(cur.y - pts[0].y), cur.x - pts[0].x);
+      ctx.beginPath(); ctx.arc(c.x, c.y, r, -endA * 180/Math.PI * Math.PI/180, startA, false); ctx.stroke();
+    }
+  } else if (tool === 'polyline') {
+    const s0 = w2s(pts[0]);
+    ctx.beginPath(); ctx.moveTo(s0.x, s0.y);
+    for (let i=1;i<pts.length;i++) { const si=w2s(pts[i]); ctx.lineTo(si.x, si.y); }
+    const sb = w2s(cur);
+    ctx.lineTo(sb.x, sb.y);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+function showDynamicInput(spt, text) {
+  const di = document.getElementById('dynamic-input');
+  di.style.display = 'block';
+  di.style.left = (spt.x + 14) + 'px';
+  di.style.top = (spt.y - 18) + 'px';
+  di.textContent = text;
+}
+
+function hideDynamicInput() {
+  document.getElementById('dynamic-input').style.display = 'none';
+}
+
+function updateSnapIndicator() {
+  const si = document.getElementById('snap-indicator');
+  const sl = document.getElementById('snap-label');
+  if (snapPt && snapType && snap) {
+    const s = w2s(snapPt);
+    si.style.display = 'block';
+    si.style.left = s.x + 'px';
+    si.style.top = s.y + 'px';
+    sl.textContent = snapType;
+  } else {
+    si.style.display = 'none';
+  }
+}
+
+function updateCoords() {
+  document.getElementById('cx').textContent = mouseW.x.toFixed(2);
+  document.getElementById('cy').textContent = mouseW.y.toFixed(2);
+  document.getElementById('cobj').textContent = objects.length;
+  if (drawing && pts.length > 0) {
+    const d = wDist(pts[pts.length-1], mouseW);
+    const a = angle(pts[pts.length-1], mouseW);
+    document.getElementById('cdist').textContent = d.toFixed(2);
+    document.getElementById('cang').textContent = a.toFixed(1) + '°';
+  } else {
+    document.getElementById('cdist').textContent = '—';
+    document.getElementById('cang').textContent = '—';
+  }
+}
+
+// ────────────────────────────────────────────────────────
+// INPUT
+// ────────────────────────────────────────────────────────
+let isPanning = false;
+let panStart = null;
+let panOrigin = null;
+
+canvas.addEventListener('mousedown', onMouseDown);
+canvas.addEventListener('mousemove', onMouseMove);
+canvas.addEventListener('mouseup', onMouseUp);
+canvas.addEventListener('dblclick', onDblClick);
+canvas.addEventListener('contextmenu', e => { e.preventDefault(); cancelDraw(); });
+canvas.addEventListener('wheel', onWheel, { passive: false });
+
+function getCanvasPt(e) {
+  const r = canvas.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+}
+
+function onMouseDown(e) {
+  const sp = getCanvasPt(e);
+  const wp = s2w(sp);
+
+  if (e.button === 1 || (e.button === 0 && e.altKey)) {
+    isPanning = true;
+    panStart = sp;
+    panOrigin = { ...pan };
+    canvas.style.cursor = 'grab';
+    return;
+  }
+
+  if (e.button === 2) { cancelDraw(); return; }
+
+  if (e.button === 0) {
+    const cur = snap ? computeSnap(wp) : wp;
+
+    if (tool === 'select') {
+      const hit = hitTest(cur);
+      if (hit) {
+        if (e.shiftKey) {
+          const idx = selected.indexOf(hit);
+          if (idx >= 0) selected.splice(idx, 1);
+          else selected.push(hit);
+        } else {
+          if (!selected.includes(hit)) selected = [hit];
+          // begin move
+          moveStart = { ...cur };
+          moveObjs = selected.map(o => JSON.parse(JSON.stringify(o)));
+        }
+      } else {
+        selected = [];
+        selDrag = true;
+        selStart = sp;
+      }
+      updatePropertiesPanel();
+      render();
+      return;
+    }
+
+    if (tool === 'move') {
+      if (!drawing) {
+        if (selected.length === 0) {
+          const hit = hitTest(cur);
+          if (hit) { selected = [hit]; }
+        }
+        if (selected.length > 0) {
+          drawing = true;
+          pts = [{ ...cur }];
+          moveObjs = selected.map(o => JSON.parse(JSON.stringify(o)));
+        }
+      } else {
+        // apply move
+        const dx = cur.x - pts[0].x;
+        const dy = cur.y - pts[0].y;
+        saveUndo();
+        selected.forEach((obj, i) => translateObj(obj, dx, dy));
+        drawing = false; pts = [];
+        render();
+      }
+      return;
+    }
+
+    if (tool === 'copy') {
+      if (!drawing) {
+        if (selected.length === 0) {
+          const hit = hitTest(cur);
+          if (hit) selected = [hit];
+        }
+        if (selected.length > 0) { drawing = true; pts = [{ ...cur }]; }
+      } else {
+        const dx = cur.x - pts[0].x;
+        const dy = cur.y - pts[0].y;
+        saveUndo();
+        selected.forEach(obj => {
+          const copy = JSON.parse(JSON.stringify(obj));
+          translateObj(copy, dx, dy);
+          objects.push(copy);
+        });
+        drawing = false; pts = [];
+        render();
+      }
+      return;
+    }
+
+    // Drawing tools
+    if (tool === 'line') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else {
+        saveUndo();
+        objects.push({ type:'line', p1:{...pts[0]}, p2:{...cur}, lw: parseFloat(document.getElementById('lw-select').value), color: document.getElementById('stroke-color').value, layerIdx: activeLayer });
+        pts = [{ ...cur }];
+        if (!e.shiftKey) { drawing = false; pts = []; }
+        render();
+      }
+    } else if (tool === 'polyline') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else { pts.push({ ...cur }); }
+    } else if (tool === 'rect') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else {
+        saveUndo();
+        objects.push({ type:'rect', p1:{...pts[0]}, p2:{...cur}, lw: parseFloat(document.getElementById('lw-select').value), color: document.getElementById('stroke-color').value, layerIdx: activeLayer });
+        drawing = false; pts = [];
+        render();
+      }
+    } else if (tool === 'circle') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else {
+        const r = wDist(pts[0], cur);
+        saveUndo();
+        objects.push({ type:'circle', center:{...pts[0]}, radius:r, lw: parseFloat(document.getElementById('lw-select').value), color: document.getElementById('stroke-color').value, layerIdx: activeLayer });
+        drawing = false; pts = [];
+        render();
+      }
+    } else if (tool === 'arc') {
+      pts.push({ ...cur });
+      if (!drawing) drawing = true;
+      if (pts.length === 3) {
+        const center = pts[0];
+        const r = wDist(pts[0], pts[1]);
+        const startA = angle(pts[0], pts[1]);
+        const endA = angle(pts[0], pts[2]);
+        saveUndo();
+        objects.push({ type:'arc', center:{...center}, radius:r, startAngle:startA, endAngle:endA, lw:1, color: document.getElementById('stroke-color').value, layerIdx:activeLayer });
+        drawing = false; pts = [];
+        render();
+      }
+    } else if (tool === 'dim') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else {
+        saveUndo();
+        objects.push({ type:'dim', p1:{...pts[0]}, p2:{...cur}, layerIdx:activeLayer });
+        drawing = false; pts = [];
+        render();
+      }
+    } else if (tool === 'measure') {
+      if (!drawing) { drawing = true; pts = [{ ...cur }]; }
+      else {
+        const d = wDist(pts[0], cur).toFixed(3);
+        const a = angle(pts[0], cur).toFixed(1);
+        alert(`Distance: ${d}\nAngle: ${a}°`);
+        drawing = false; pts = [];
+        render();
+      }
+    } else if (tool === 'text') {
+      const txt = prompt('Enter text:');
+      if (txt) {
+        saveUndo();
+        objects.push({ type:'text', pos:{...cur}, text:txt, size:14, color: document.getElementById('stroke-color').value, layerIdx:activeLayer });
+        render();
+      }
+    }
+  }
+}
+
+function onMouseMove(e) {
+  const sp = getCanvasPt(e);
+
+  if (isPanning) {
+    pan.x = panOrigin.x + (sp.x - panStart.x);
+    pan.y = panOrigin.y + (sp.y - panStart.y);
+    render(); return;
+  }
+
+  if (selDrag && tool === 'select') {
+    const sx = Math.min(selStart.x, sp.x);
+    const sy = Math.min(selStart.y, sp.y);
+    const sw = Math.abs(sp.x - selStart.x);
+    const sh = Math.abs(sp.y - selStart.y);
+    const sb = document.getElementById('sel-box');
+    sb.style.display = 'block';
+    sb.style.left = sx+'px'; sb.style.top = sy+'px';
+    sb.style.width = sw+'px'; sb.style.height = sh+'px';
+    return;
+  }
+
+  const wp = s2w(sp);
+  mouseW = snap ? computeSnap(wp) : wp;
+  render();
+}
+
+function onMouseUp(e) {
+  if (isPanning) { isPanning = false; canvas.style.cursor = 'crosshair'; return; }
+
+  if (selDrag && tool === 'select') {
+    const sb = document.getElementById('sel-box');
+    sb.style.display = 'none';
+    const sp = getCanvasPt(e);
+    // window select
+    const x1 = Math.min(selStart.x, sp.x), x2 = Math.max(selStart.x, sp.x);
+    const y1 = Math.min(selStart.y, sp.y), y2 = Math.max(selStart.y, sp.y);
+    const w1 = s2w({x:x1,y:y1}), w2 = s2w({x:x2,y:y2});
+    const selW = { x1: Math.min(w1.x,w2.x), x2: Math.max(w1.x,w2.x), y1: Math.min(w1.y,w2.y), y2: Math.max(w1.y,w2.y) };
+    selected = objects.filter(o => objInBox(o, selW));
+    selDrag = false; selStart = null;
+    updatePropertiesPanel();
+    render();
+  }
+}
+
+function onDblClick(e) {
+  if (tool === 'polyline' && pts.length > 1) {
+    saveUndo();
+    objects.push({ type:'polyline', pts:[...pts], closed: false, lw: parseFloat(document.getElementById('lw-select').value), color: document.getElementById('stroke-color').value, layerIdx: activeLayer });
+    drawing = false; pts = [];
+    render();
+  }
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const sp = getCanvasPt(e);
+  const factor = e.deltaY < 0 ? 1.15 : 1/1.15;
+  zoom *= factor;
+  pan.x = sp.x - (sp.x - pan.x) * factor;
+  pan.y = sp.y - (sp.y - pan.y) * factor;
+  document.getElementById('tb-zoom-label').textContent = `ZOOM: ${zoom.toFixed(2)}×`;
+  render();
+}
+
+// ────────────────────────────────────────────────────────
+// HIT TEST
+// ────────────────────────────────────────────────────────
+function hitTest(wp) {
+  const thr = 8 / zoom;
+  for (let i = objects.length-1; i >= 0; i--) {
+    const obj = objects[i];
+    if (!layers[obj.layerIdx].visible) continue;
+    if (objHit(obj, wp, thr)) return obj;
+  }
+  return null;
+}
+
+function objHit(obj, wp, thr) {
+  if (obj.type === 'line') return distPtLine(wp, obj.p1, obj.p2) < thr;
+  if (obj.type === 'rect') {
+    return distPtLine(wp, obj.p1, {x:obj.p2.x,y:obj.p1.y}) < thr ||
+           distPtLine(wp, {x:obj.p2.x,y:obj.p1.y}, obj.p2) < thr ||
+           distPtLine(wp, obj.p2, {x:obj.p1.x,y:obj.p2.y}) < thr ||
+           distPtLine(wp, {x:obj.p1.x,y:obj.p2.y}, obj.p1) < thr;
+  }
+  if (obj.type === 'circle') return Math.abs(dist(wp, obj.center) - obj.radius) < thr;
+  if (obj.type === 'polyline') {
+    for (let i=0;i<obj.pts.length-1;i++) if (distPtLine(wp, obj.pts[i], obj.pts[i+1]) < thr) return true;
+  }
+  if (obj.type === 'text') return dist(wp, obj.pos) < 20/zoom;
+  if (obj.type === 'dim') return distPtLine(wp, obj.p1, obj.p2) < thr;
+  return false;
+}
+
+function distPtLine(p, a, b) {
+  const dx = b.x-a.x, dy = b.y-a.y;
+  const t = Math.max(0, Math.min(1, ((p.x-a.x)*dx + (p.y-a.y)*dy) / (dx*dx+dy*dy)));
+  return dist(p, { x: a.x+t*dx, y: a.y+t*dy });
+}
+
+function objInBox(obj, box) {
+  if (obj.type === 'line') return ptInBox(obj.p1, box) && ptInBox(obj.p2, box);
+  if (obj.type === 'rect') return ptInBox(obj.p1, box) && ptInBox(obj.p2, box);
+  if (obj.type === 'circle') return ptInBox(obj.center, box);
+  if (obj.type === 'text') return ptInBox(obj.pos, box);
+  if (obj.type === 'polyline') return obj.pts.every(p => ptInBox(p, box));
+  return false;
+}
+function ptInBox(p, b) { return p.x >= b.x1 && p.x <= b.x2 && p.y >= b.y1 && p.y <= b.y2; }
+
+// ────────────────────────────────────────────────────────
+// TOOLS
+// ────────────────────────────────────────────────────────
+function setTool(t) {
+  cancelDraw();
+  tool = t;
+  document.querySelectorAll('.lp-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('tool-' + t);
+  if (btn) btn.classList.add('active');
+  document.getElementById('tool-display').textContent = t.toUpperCase();
+}
+
+function cancelDraw() {
+  drawing = false; pts = [];
+  hideDynamicInput();
+  render();
+}
+
+function translateObj(obj, dx, dy) {
+  if (obj.type === 'line') { obj.p1.x+=dx; obj.p1.y+=dy; obj.p2.x+=dx; obj.p2.y+=dy; }
+  else if (obj.type === 'rect') { obj.p1.x+=dx; obj.p1.y+=dy; obj.p2.x+=dx; obj.p2.y+=dy; }
+  else if (obj.type === 'circle') { obj.center.x+=dx; obj.center.y+=dy; }
+  else if (obj.type === 'text') { obj.pos.x+=dx; obj.pos.y+=dy; }
+  else if (obj.type === 'polyline') { obj.pts.forEach(p => { p.x+=dx; p.y+=dy; }); }
+  else if (obj.type === 'dim') { obj.p1.x+=dx; obj.p1.y+=dy; obj.p2.x+=dx; obj.p2.y+=dy; }
+}
+
+// ────────────────────────────────────────────────────────
+// UNDO / REDO
+// ────────────────────────────────────────────────────────
+function saveUndo() {
+  undoStack.push(JSON.parse(JSON.stringify(objects)));
+  if (undoStack.length > 60) undoStack.shift();
+  redoStack = [];
+}
+
+function undo() {
+  if (undoStack.length === 0) return;
+  redoStack.push(JSON.parse(JSON.stringify(objects)));
+  objects = undoStack.pop();
+  selected = [];
+  render();
+}
+
+function redo() {
+  if (redoStack.length === 0) return;
+  undoStack.push(JSON.parse(JSON.stringify(objects)));
+  objects = redoStack.pop();
+  selected = [];
+  render();
+}
+
+// ────────────────────────────────────────────────────────
+// TOOLBAR ACTIONS
+// ────────────────────────────────────────────────────────
+function zoomAt(f) {
+  zoom *= f;
+  pan.x = W/2 - (W/2 - pan.x) * f;
+  pan.y = H/2 - (H/2 - pan.y) * f;
+  document.getElementById('tb-zoom-label').textContent = `ZOOM: ${zoom.toFixed(2)}×`;
+  render();
+}
+
+function fitAll() {
+  if (objects.length === 0) { zoom = 1; pan = {x:W/2, y:H/2}; render(); return; }
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for (const obj of objects) {
+    const bb = getBB(obj);
+    minX = Math.min(minX,bb.x1); maxX = Math.max(maxX,bb.x2);
+    minY = Math.min(minY,bb.y1); maxY = Math.max(maxY,bb.y2);
+  }
+  const pw = W-120, ph = H-80;
+  const ww = maxX-minX || 100, wh = maxY-minY || 100;
+  zoom = Math.min(pw/ww, ph/wh) * 0.85;
+  pan.x = W/2 - ((minX+maxX)/2)*zoom;
+  pan.y = H/2 + ((minY+maxY)/2)*zoom;
+  document.getElementById('tb-zoom-label').textContent = `ZOOM: ${zoom.toFixed(2)}×`;
+  render();
+}
+
+function getBB(obj) {
+  if (obj.type==='line') return { x1:Math.min(obj.p1.x,obj.p2.x), x2:Math.max(obj.p1.x,obj.p2.x), y1:Math.min(obj.p1.y,obj.p2.y), y2:Math.max(obj.p1.y,obj.p2.y) };
+  if (obj.type==='rect') return { x1:Math.min(obj.p1.x,obj.p2.x), x2:Math.max(obj.p1.x,obj.p2.x), y1:Math.min(obj.p1.y,obj.p2.y), y2:Math.max(obj.p1.y,obj.p2.y) };
+  if (obj.type==='circle') return { x1:obj.center.x-obj.radius, x2:obj.center.x+obj.radius, y1:obj.center.y-obj.radius, y2:obj.center.y+obj.radius };
+  if (obj.type==='text') return { x1:obj.pos.x, x2:obj.pos.x+50, y1:obj.pos.y-14, y2:obj.pos.y };
+  if (obj.type==='polyline') {
+    const xs = obj.pts.map(p=>p.x), ys = obj.pts.map(p=>p.y);
+    return { x1:Math.min(...xs), x2:Math.max(...xs), y1:Math.min(...ys), y2:Math.max(...ys) };
+  }
+  return { x1:0, x2:0, y1:0, y2:0 };
+}
+
+function toggleGrid() {
+  gridOn = !gridOn;
+  document.getElementById('btn-grid').classList.toggle('active', gridOn);
+  render();
+}
+
+function toggleSnap() {
+  snap = !snap;
+  document.getElementById('btn-snap').classList.toggle('active', snap);
+  document.getElementById('tb-snap-label').textContent = `SNAP: ${snap?'ON':'OFF'}`;
+}
+
+function toggleOrtho() {
+  ortho = !ortho;
+  document.getElementById('btn-ortho').classList.toggle('active', ortho);
+  document.getElementById('tb-ortho-label').textContent = `ORTHO: ${ortho?'ON':'OFF'}`;
+}
+
+function deleteSelected() {
+  if (selected.length === 0) return;
+  saveUndo();
+  objects = objects.filter(o => !selected.includes(o));
+  selected = [];
+  updatePropertiesPanel();
+  render();
+}
+
+function newFile() {
+  if (objects.length > 0 && !confirm('Clear all objects?')) return;
+  saveUndo();
+  objects = []; selected = [];
+  render();
+}
+
+function savePNG() {
+  const link = document.createElement('a');
+  link.download = 'opendraft.png';
+  link.href = canvas.toDataURL();
+  link.click();
+}
+
+// ────────────────────────────────────────────────────────
+// PDF EXPORT  (pure-JS, no library needed)
+// Renders canvas to a white-background PDF page sized to fit all geometry
+// ────────────────────────────────────────────────────────
+function exportPDF() {
+  if (objects.length === 0) { alert('Nothing to export.'); return; }
+
+  // Compute world bounding box
+  let minX=Infinity, maxX=-Infinity, minY=Infinity, maxY=-Infinity;
+  for (const obj of objects) {
+    const bb = getBB(obj);
+    minX=Math.min(minX,bb.x1); maxX=Math.max(maxX,bb.x2);
+    minY=Math.min(minY,bb.y1); maxY=Math.max(maxY,bb.y2);
+  }
+  const margin = 40;
+  minX -= margin; minY -= margin; maxX += margin; maxY += margin;
+
+  // A4 landscape in pts: 841 × 595
+  const PAGE_W = 841, PAGE_H = 595;
+  const scaleX = PAGE_W / (maxX - minX);
+  const scaleY = PAGE_H / (maxY - minY);
+  const scale = Math.min(scaleX, scaleY) * 0.95;
+  const offX = (PAGE_W - (maxX - minX) * scale) / 2 - minX * scale;
+  const offY = (PAGE_H - (maxY - minY) * scale) / 2;
+
+  // PDF coordinate: x' = x*scale + offX,  y' = PAGE_H - (y*scale + offY)
+  function px(x) { return (x * scale + offX).toFixed(3); }
+  function py(y) { return (PAGE_H - (y * scale + offY)).toFixed(3); }
+
+  function hexToRGB(hex) {
+    hex = hex.replace('#','');
+    if (hex.length === 3) hex = hex.split('').map(c=>c+c).join('');
+    const n = parseInt(hex, 16);
+    return [(n>>16&255)/255, (n>>8&255)/255, (n&255)/255];
+  }
+
+  function setColor(color) {
+    const [r,g,b] = hexToRGB(color || '#00d4ff');
+    return `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG\n${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg\n`;
+  }
+
+  let stream = '';
+
+  // White background
+  stream += `1 1 1 rg\n0 0 ${PAGE_W} ${PAGE_H} re f\n`;
+  // Light grid hint lines (optional faint border)
+  stream += `0.85 0.85 0.85 RG 0.5 w\n0 0 ${PAGE_W} ${PAGE_H} re S\n`;
+
+  for (const obj of objects) {
+    if (!layers[obj.layerIdx]?.visible) continue;
+    const lc = layers[obj.layerIdx]?.color || '#00d4ff';
+    const color = obj.color || lc;
+    const lw = (obj.lw || 1) * 0.5;
+
+    stream += setColor(color);
+    stream += `${lw.toFixed(2)} w\n`;
+
+    if (obj.type === 'line') {
+      stream += `${px(obj.p1.x)} ${py(obj.p1.y)} m ${px(obj.p2.x)} ${py(obj.p2.y)} l S\n`;
+    } else if (obj.type === 'rect') {
+      const x1=Math.min(obj.p1.x,obj.p2.x), x2=Math.max(obj.p1.x,obj.p2.x);
+      const y1=Math.min(obj.p1.y,obj.p2.y), y2=Math.max(obj.p1.y,obj.p2.y);
+      stream += `${px(x1)} ${py(y1)} m ${px(x2)} ${py(y1)} l ${px(x2)} ${py(y2)} l ${px(x1)} ${py(y2)} l h S\n`;
+    } else if (obj.type === 'circle') {
+      // Approximate circle with 4 bezier curves
+      const cx = obj.center.x, cy = obj.center.y, r = obj.radius;
+      const k = 0.5523;
+      const xs = [ [cx+r,cy], [cx+r,cy+r*k], [cx+r*k,cy+r], [cx,cy+r],
+                   [cx,cy+r], [cx-r*k,cy+r], [cx-r,cy+r*k], [cx-r,cy],
+                   [cx-r,cy], [cx-r,cy-r*k], [cx-r*k,cy-r], [cx,cy-r],
+                   [cx,cy-r], [cx+r*k,cy-r], [cx+r,cy-r*k], [cx+r,cy] ];
+      stream += `${px(cx+r)} ${py(cy)} m\n`;
+      for (let i=0; i<4; i++) {
+        const b = xs.slice(i*4, i*4+4);
+        stream += `${px(b[1][0])} ${py(b[1][1])} ${px(b[2][0])} ${py(b[2][1])} ${px(b[3][0])} ${py(b[3][1])} c\n`;
+      }
+      stream += `S\n`;
+    } else if (obj.type === 'polyline') {
+      if (obj.pts.length < 2) continue;
+      stream += `${px(obj.pts[0].x)} ${py(obj.pts[0].y)} m\n`;
+      for (let i=1; i<obj.pts.length; i++) stream += `${px(obj.pts[i].x)} ${py(obj.pts[i].y)} l\n`;
+      stream += `S\n`;
+    } else if (obj.type === 'text') {
+      const [r,g,b] = hexToRGB(color);
+      const fontSize = Math.max(6, (obj.size || 12) * scale * 0.8);
+      stream += `BT /F1 ${fontSize.toFixed(1)} Tf ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg ${px(obj.pos.x)} ${py(obj.pos.y)} Td (${obj.text.replace(/[()\\]/g,'\\$&')}) Tj ET\n`;
+    } else if (obj.type === 'dim') {
+      // Dimension lines
+      const offset = 15;
+      const dx = obj.p2.x-obj.p1.x, dy = obj.p2.y-obj.p1.y;
+      const len = Math.sqrt(dx*dx+dy*dy);
+      if (len < 0.001) continue;
+      const nx = -dy/len*offset/scale, ny = dx/len*offset/scale;
+      stream += `0.3 0.3 0.3 RG 0.4 w\n`;
+      stream += `${px(obj.p1.x+nx)} ${py(obj.p1.y+ny)} m ${px(obj.p2.x+nx)} ${py(obj.p2.y+ny)} l S\n`;
+      stream += `${px(obj.p1.x)} ${py(obj.p1.y)} m ${px(obj.p1.x+nx)} ${py(obj.p1.y+ny)} l S\n`;
+      stream += `${px(obj.p2.x)} ${py(obj.p2.y)} m ${px(obj.p2.x+nx)} ${py(obj.p2.y+ny)} l S\n`;
+      const d = Math.sqrt((obj.p2.x-obj.p1.x)**2+(obj.p2.y-obj.p1.y)**2).toFixed(2);
+      const mx = (obj.p1.x+obj.p2.x)/2+nx, my = (obj.p1.y+obj.p2.y)/2+ny;
+      stream += `BT /F1 7 Tf 0.2 0.2 0.2 rg ${px(mx)} ${py(my+2/scale)} Td (${d}) Tj ET\n`;
+    }
+  }
+
+  // Title block
+  stream += `0.1 0.1 0.1 rg BT /F1 9 Tf 20 15 Td (OpenDraft Export  |  ${new Date().toLocaleDateString('en-GB')}  |  Objects: ${objects.length}) Tj ET\n`;
+
+  // Build minimal PDF
+  const streamBytes = new TextEncoder().encode(stream);
+  const streamLen = streamBytes.length;
+
+  const pdfParts = [];
+  const offsets = [];
+
+  function addObj(content) {
+    offsets.push(pdfParts.reduce((a,p)=>a+p.length,0)+9);
+    pdfParts.push(content);
+  }
+
+  const header = `%PDF-1.4\n`;
+  const obj1 = `1 0 obj\n<</Type /Catalog /Pages 2 0 R>>\nendobj\n`;
+  const obj2 = `2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n`;
+  const obj3 = `3 0 obj\n<</Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Contents 4 0 R /Resources <</Font <</F1 5 0 R>>>>>>\nendobj\n`;
+  const obj4 = `4 0 obj\n<</Length ${streamLen}>>\nstream\n${stream}\nendstream\nendobj\n`;
+  const obj5 = `5 0 obj\n<</Type /Font /Subtype /Type1 /BaseFont /Helvetica>>\nendobj\n`;
+
+  let pdf = header;
+  const o1 = pdf.length; pdf += obj1;
+  const o2 = pdf.length; pdf += obj2;
+  const o3 = pdf.length; pdf += obj3;
+  const o4 = pdf.length; pdf += obj4;
+  const o5 = pdf.length; pdf += obj5;
+  const xrefPos = pdf.length;
+
+  pdf += `xref\n0 6\n0000000000 65535 f \n`;
+  pdf += `${String(o1).padStart(10,'0')} 00000 n \n`;
+  pdf += `${String(o2).padStart(10,'0')} 00000 n \n`;
+  pdf += `${String(o3).padStart(10,'0')} 00000 n \n`;
+  pdf += `${String(o4).padStart(10,'0')} 00000 n \n`;
+  pdf += `${String(o5).padStart(10,'0')} 00000 n \n`;
+  pdf += `trailer\n<</Size 6 /Root 1 0 R>>\nstartxref\n${xrefPos}\n%%EOF`;
+
+  const blob = new Blob([pdf], { type: 'application/pdf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'opendraft.pdf'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ────────────────────────────────────────────────────────
+// DXF EXPORT  (AutoCAD R12 ASCII — opens in AutoCAD, FreeCAD, LibreCAD, QGIS, etc.)
+// ────────────────────────────────────────────────────────
+function exportDXF() {
+  if (objects.length === 0) { alert('Nothing to export.'); return; }
+
+  function colorIndex(hex) {
+    // Map common hex colours to ACI (AutoCAD Color Index) — approximate
+    if (!hex) return 7;
+    hex = hex.toLowerCase().replace('#','');
+    const map = { '00d4ff':4, 'ff6b35':30, '7fff6b':3, 'ffffff':7, 'ff0000':1, '00ff00':3, '0000ff':5, 'ffff00':2, 'ff00ff':6, '00ffff':4 };
+    return map[hex] || 7;
+  }
+
+  let dxf = '';
+
+  // HEADER
+  dxf += '  0\nSECTION\n  2\nHEADER\n';
+  dxf += '  9\n$ACADVER\n  1\nAC1009\n';
+  dxf += '  9\n$INSUNITS\n 70\n4\n'; // millimetres
+  dxf += '  0\nENDSEC\n';
+
+  // TABLES (layers)
+  dxf += '  0\nSECTION\n  2\nTABLES\n';
+  dxf += '  0\nTABLE\n  2\nLAYER\n 70\n' + layers.length + '\n';
+  layers.forEach((l, i) => {
+    dxf += '  0\nLAYER\n  2\n' + l.name + '\n 70\n0\n 62\n' + colorIndex(l.color) + '\n  6\nCONTINUOUS\n';
+  });
+  dxf += '  0\nENDTAB\n  0\nENDSEC\n';
+
+  // ENTITIES
+  dxf += '  0\nSECTION\n  2\nENTITIES\n';
+
+  for (const obj of objects) {
+    if (!layers[obj.layerIdx]?.visible) continue;
+    const layerName = layers[obj.layerIdx]?.name || '0';
+    const aci = colorIndex(obj.color || layers[obj.layerIdx]?.color);
+    const lw = obj.lw || 1;
+
+    if (obj.type === 'line') {
+      dxf += '  0\nLINE\n';
+      dxf += '  8\n' + layerName + '\n';
+      dxf += ' 62\n' + aci + '\n';
+      dxf += ' 10\n' + obj.p1.x.toFixed(6) + '\n 20\n' + obj.p1.y.toFixed(6) + '\n 30\n0.0\n';
+      dxf += ' 11\n' + obj.p2.x.toFixed(6) + '\n 21\n' + obj.p2.y.toFixed(6) + '\n 31\n0.0\n';
+    } else if (obj.type === 'rect') {
+      // Rect as LWPOLYLINE (closed)
+      const x1=obj.p1.x, y1=obj.p1.y, x2=obj.p2.x, y2=obj.p2.y;
+      const corners = [[x1,y1],[x2,y1],[x2,y2],[x1,y2]];
+      dxf += '  0\nLWPOLYLINE\n  8\n' + layerName + '\n 62\n' + aci + '\n 90\n4\n 70\n1\n 43\n' + lw + '\n';
+      corners.forEach(([x,y]) => { dxf += ' 10\n'+x.toFixed(6)+'\n 20\n'+y.toFixed(6)+'\n'; });
+    } else if (obj.type === 'circle') {
+      dxf += '  0\nCIRCLE\n';
+      dxf += '  8\n' + layerName + '\n 62\n' + aci + '\n';
+      dxf += ' 10\n' + obj.center.x.toFixed(6) + '\n 20\n' + obj.center.y.toFixed(6) + '\n 30\n0.0\n';
+      dxf += ' 40\n' + obj.radius.toFixed(6) + '\n';
+    } else if (obj.type === 'arc') {
+      dxf += '  0\nARC\n';
+      dxf += '  8\n' + layerName + '\n 62\n' + aci + '\n';
+      dxf += ' 10\n' + obj.center.x.toFixed(6) + '\n 20\n' + obj.center.y.toFixed(6) + '\n 30\n0.0\n';
+      dxf += ' 40\n' + obj.radius.toFixed(6) + '\n';
+      dxf += ' 50\n' + obj.startAngle.toFixed(6) + '\n 51\n' + obj.endAngle.toFixed(6) + '\n';
+    } else if (obj.type === 'polyline') {
+      if (obj.pts.length < 2) continue;
+      dxf += '  0\nLWPOLYLINE\n  8\n' + layerName + '\n 62\n' + aci + '\n';
+      dxf += ' 90\n' + obj.pts.length + '\n 70\n' + (obj.closed ? 1 : 0) + '\n 43\n' + lw + '\n';
+      obj.pts.forEach(p => { dxf += ' 10\n'+p.x.toFixed(6)+'\n 20\n'+p.y.toFixed(6)+'\n'; });
+    } else if (obj.type === 'text') {
+      dxf += '  0\nTEXT\n';
+      dxf += '  8\n' + layerName + '\n 62\n' + aci + '\n';
+      dxf += ' 10\n' + obj.pos.x.toFixed(6) + '\n 20\n' + obj.pos.y.toFixed(6) + '\n 30\n0.0\n';
+      dxf += ' 40\n' + (obj.size || 12) + '\n';
+      dxf += '  1\n' + obj.text + '\n';
+    } else if (obj.type === 'dim') {
+      // Linear dimension entity
+      const mx = (obj.p1.x+obj.p2.x)/2, my = (obj.p1.y+obj.p2.y)/2 + 15;
+      dxf += '  0\nDIMENSION\n  8\n' + layerName + '\n 62\n' + aci + '\n';
+      dxf += ' 10\n'+mx.toFixed(6)+'\n 20\n'+my.toFixed(6)+'\n 30\n0.0\n';
+      dxf += ' 11\n'+mx.toFixed(6)+'\n 21\n'+my.toFixed(6)+'\n 31\n0.0\n';
+      dxf += ' 13\n'+obj.p1.x.toFixed(6)+'\n 23\n'+obj.p1.y.toFixed(6)+'\n 33\n0.0\n';
+      dxf += ' 14\n'+obj.p2.x.toFixed(6)+'\n 24\n'+obj.p2.y.toFixed(6)+'\n 34\n0.0\n';
+      dxf += ' 70\n32\n';
+    }
+  }
+
+  dxf += '  0\nENDSEC\n  0\nEOF\n';
+
+  const blob = new Blob([dxf], { type: 'application/dxf' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'opendraft.dxf'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+// ────────────────────────────────────────────────────────
+// LAYERS
+// ────────────────────────────────────────────────────────
+function renderLayers() {
+  const lb = document.getElementById('layers-body');
+  lb.innerHTML = '';
+  layers.forEach((l, i) => {
+    const row = document.createElement('div');
+    row.className = 'layer-row' + (i === activeLayer ? ' active' : '');
+    row.innerHTML = `<div class="layer-dot" style="background:${l.color}"></div>
+      <span class="layer-name">${l.name}</span>
+      <span class="layer-vis" onclick="event.stopPropagation();toggleLayer(${i})">${l.visible ? '👁' : '🚫'}</span>`;
+    row.onclick = () => { activeLayer = i; renderLayers(); };
+    lb.appendChild(row);
+  });
+}
+
+function toggleLayer(i) {
+  layers[i].visible = !layers[i].visible;
+  renderLayers(); render();
+}
+
+function addLayer() {
+  const name = prompt('Layer name:', 'Layer ' + layers.length);
+  if (!name) return;
+  const colors = ['#ff6b35','#7fff6b','#ff4488','#ffd700','#a0f0f0'];
+  layers.push({ name, color: colors[layers.length % colors.length], visible: true });
+  renderLayers();
+}
+
+// ────────────────────────────────────────────────────────
+// PROPERTIES
+// ────────────────────────────────────────────────────────
+function updatePropertiesPanel() {
+  if (selected.length === 1) {
+    const obj = selected[0];
+    document.getElementById('prop-type').textContent = obj.type.toUpperCase();
+    document.getElementById('prop-layer').textContent = layers[obj.layerIdx]?.name || obj.layerIdx;
+    if (obj.type === 'line') {
+      document.getElementById('prop-len').textContent = wDist(obj.p1, obj.p2).toFixed(3);
+      document.getElementById('prop-ang').textContent = angle(obj.p1, obj.p2).toFixed(1) + '°';
+      document.getElementById('prop-x').textContent = obj.p1.x.toFixed(2);
+      document.getElementById('prop-y').textContent = obj.p1.y.toFixed(2);
+    } else if (obj.type === 'circle') {
+      document.getElementById('prop-len').textContent = (obj.radius * 2 * Math.PI).toFixed(3);
+      document.getElementById('prop-ang').textContent = '—';
+      document.getElementById('prop-x').textContent = obj.center.x.toFixed(2);
+      document.getElementById('prop-y').textContent = obj.center.y.toFixed(2);
+    } else {
+      document.getElementById('prop-len').textContent = '—';
+      document.getElementById('prop-ang').textContent = '—';
+      document.getElementById('prop-x').textContent = '—';
+      document.getElementById('prop-y').textContent = '—';
+    }
+  } else {
+    ['prop-type','prop-len','prop-ang','prop-x','prop-y'].forEach(id => document.getElementById(id).textContent = selected.length > 1 ? `(${selected.length})` : '—');
+  }
+
+  // Objects list
+  const ob = document.getElementById('objects-body');
+  ob.innerHTML = objects.map((o,i) => `<div style="padding:2px 0;color:${selected.includes(o)?'#00d4ff':'#5a6278'};cursor:pointer;" onclick="selectObj(${i})">${i+1}. ${o.type.toUpperCase()} [${layers[o.layerIdx]?.name||o.layerIdx}]</div>`).join('');
+}
+
+function selectObj(i) {
+  selected = [objects[i]];
+  updatePropertiesPanel();
+  render();
+}
+
+// ────────────────────────────────────────────────────────
+// CAD COMMAND SYSTEM
+// Type anywhere (no click needed) — chars accumulate in cmd bar.
+// Enter or Space executes. Escape clears. Backspace deletes.
+// Matches AutoCAD aliases: L, PL, REC, C, ARC, A, T, DLI, M, CO, RO, E, Z, ZA, ZE, F8, F9, etc.
+// ────────────────────────────────────────────────────────
+
+let cmdBuffer = '';
+
+// Map of command aliases → action functions
+const CAD_COMMANDS = {
+  // ── Draw ──
+  'l':    () => setTool('line'),
+  'line': () => setTool('line'),
+
+  'pl':       () => setTool('polyline'),
+  'pline':    () => setTool('polyline'),
+  'polyline': () => setTool('polyline'),
+
+  'rec':  () => setTool('rect'),
+  'rect': () => setTool('rect'),
+  'rectang': () => setTool('rect'),
+
+  'c':      () => setTool('circle'),
+  'ci':     () => setTool('circle'),
+  'circle': () => setTool('circle'),
+
+  'arc': () => setTool('arc'),
+  'a':   () => setTool('arc'),
+
+  'spl':    () => setTool('polyline'),   // spline → polyline fallback
+  'spline': () => setTool('polyline'),
+
+  // ── Annotate ──
+  't':    () => setTool('text'),
+  'dt':   () => setTool('text'),
+  'text': () => setTool('text'),
+  'mtext':() => setTool('text'),
+  'mt':   () => setTool('text'),
+
+  'dli':  () => setTool('dim'),
+  'dal':  () => setTool('dim'),
+  'dim':  () => setTool('dim'),
+  'dimlinear': () => setTool('dim'),
+
+  'mea':     () => setTool('measure'),
+  'measure': () => setTool('measure'),
+  'dist':    () => setTool('measure'),
+  'di':      () => setTool('measure'),
+
+  // ── Modify ──
+  'm':    () => setTool('move'),
+  'move': () => setTool('move'),
+
+  'co':   () => setTool('copy'),
+  'cp':   () => setTool('copy'),
+  'copy': () => setTool('copy'),
+
+  'ro':     () => setTool('rotate'),
+  'rotate': () => setTool('rotate'),
+
+  'e':     () => deleteSelected(),
+  'er':    () => deleteSelected(),
+  'erase': () => deleteSelected(),
+  'del':   () => deleteSelected(),
+
+  // ── Select ──
+  'esc': () => { cancelDraw(); selected = []; setTool('select'); render(); },
+
+  // ── View ──
+  'z':    () => null,   // just clears — user follows with ZA / ZE / ZW
+  'za':   () => fitAll(),
+  'ze':   () => fitAll(),
+  'zoomall':   () => fitAll(),
+  'zoomextents': () => fitAll(),
+  'zoom': () => fitAll(),
+
+  'f':    () => fitAll(),
+  'fit':  () => fitAll(),
+
+  'pan':  () => null,  // middle-click already works
+
+  // ── Toggles ──
+  'grid': () => toggleGrid(),
+  'g':    () => toggleGrid(),
+
+  'snap': () => toggleSnap(),
+  'os':   () => toggleSnap(),   // OSNAP toggle
+  'osnap':() => toggleSnap(),
+
+  'f8':   () => toggleOrtho(),
+  'ortho':() => toggleOrtho(),
+
+  // ── File ──
+  'new':  () => newFile(),
+  'qsave':() => savePNG(),
+  'save': () => savePNG(),
+  'plot': () => exportPDF(),
+  'pdf':  () => exportPDF(),
+  'dxf':  () => exportDXF(),
+  'export': () => exportDXF(),
+
+  // ── Edit ──
+  'u':    () => undo(),
+  'undo': () => undo(),
+  'redo': () => redo(),
+};
+
+function flushCommand() {
+  const raw = cmdBuffer.trim();
+  cmdBuffer = '';
+  updateCmdBar('');
+  if (!raw) {
+    // Blank Enter = repeat last command (AutoCAD behaviour)
+    if (lastCmd) runCadCommand(lastCmd);
+    return;
+  }
+  runCadCommand(raw.toLowerCase());
+}
+
+let lastCmd = '';
+
+function runCadCommand(cmd) {
+  if (CAD_COMMANDS[cmd]) {
+    CAD_COMMANDS[cmd]();
+    lastCmd = cmd;
+    flashCmdBar(cmd.toUpperCase(), true);
+  } else {
+    flashCmdBar(`Unknown: ${cmd.toUpperCase()}`, false);
+  }
+}
+
+function updateCmdBar(text) {
+  const inp = document.getElementById('cmd-input');
+  inp.value = text;
+}
+
+function flashCmdBar(msg, ok) {
+  const inp = document.getElementById('cmd-input');
+  inp.value = msg;
+  inp.style.color = ok ? 'var(--accent3)' : 'var(--accent2)';
+  setTimeout(() => { inp.value = cmdBuffer; inp.style.color = 'var(--accent)'; }, 900);
+}
+
+// ── Global keydown — intercept typing anywhere on canvas ──
+document.addEventListener('keydown', e => {
+  // Let browser shortcuts through
+  if (e.ctrlKey || e.metaKey) {
+    if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); return; }
+    if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+    if (e.key.toLowerCase() === 'a') { e.preventDefault(); selected = [...objects]; updatePropertiesPanel(); render(); return; }
+    return;
+  }
+
+  // Don't steal from the cmd input box if user clicked into it
+  if (document.activeElement === document.getElementById('cmd-input')) return;
+
+  const key = e.key;
+
+  if (key === 'Escape') {
+    cmdBuffer = '';
+    updateCmdBar('');
+    cancelDraw(); selected = []; setTool('select'); render();
+    return;
+  }
+
+  if (key === 'Delete') { deleteSelected(); return; }
+
+  if (key === 'Enter' || key === ' ') {
+    e.preventDefault();
+    // Space/Enter while drawing polyline = finish it
+    if ((key === 'Enter' || key === ' ') && tool === 'polyline' && pts.length > 1) {
+      saveUndo();
+      objects.push({ type:'polyline', pts:[...pts], closed:false, lw:parseFloat(document.getElementById('lw-select').value), color:document.getElementById('stroke-color').value, layerIdx:activeLayer });
+      drawing = false; pts = []; render();
+      cmdBuffer = ''; updateCmdBar('');
+      return;
+    }
+    flushCommand();
+    return;
+  }
+
+  if (key === 'Backspace') {
+    cmdBuffer = cmdBuffer.slice(0, -1);
+    updateCmdBar(cmdBuffer);
+    return;
+  }
+
+  // F-keys
+  if (key === 'F8') { e.preventDefault(); toggleOrtho(); return; }
+  if (key === 'F9') { e.preventDefault(); toggleSnap(); return; }
+  if (key === 'F7') { e.preventDefault(); toggleGrid(); return; }
+
+  // Zoom shortcuts (no modifier)
+  if (key === '+' || key === '=') { zoomAt(1.25); return; }
+  if (key === '-') { zoomAt(0.8); return; }
+
+  // Printable chars → accumulate in command buffer
+  if (key.length === 1) {
+    cmdBuffer += key;
+    updateCmdBar(cmdBuffer);
+
+    // Auto-fire single-char commands that can't be prefixes of anything longer
+    // (avoids having to hit Enter for L, C, M, etc.)
+    const singleOnly = new Set(['l','c','m','t','a','f','g','z','u','e']);
+    // Only auto-fire if it's a known command AND not a prefix of a longer one
+    const typed = cmdBuffer.toLowerCase();
+    const isPrefix = Object.keys(CAD_COMMANDS).some(k => k !== typed && k.startsWith(typed));
+    if (!isPrefix && CAD_COMMANDS[typed]) {
+      setTimeout(() => {
+        if (cmdBuffer.toLowerCase() === typed) flushCommand();
+      }, 350); // slight delay so PL doesn't fire on P alone
+    }
+  }
+});
+
+// ── cmd-input box still works for mouse users who click it ──
+document.getElementById('cmd-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const cmd = e.target.value.trim().toLowerCase();
+    cmdBuffer = cmd;
+    e.target.blur();
+    flushCommand();
+  }
+  if (key === 'Escape') { cmdBuffer = ''; updateCmdBar(''); e.target.blur(); }
+});
+
+// ────────────────────────────────────────────────────────
+// INIT
+// ────────────────────────────────────────────────────────
+document.getElementById('btn-snap').classList.add('active');
+resize();
+renderLayers();
+updatePropertiesPanel();
+setTool('select');
+
+// Ensure snap btn labeled
+document.getElementById('tb-snap-label').textContent = 'SNAP: ON';
+
+// Animation loop for smooth mouse tracking
+(function loop() { requestAnimationFrame(loop); })();
+</script>
+</body>
+</html>
