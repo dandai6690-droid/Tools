@@ -1,0 +1,2126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenDraft — 2D CAD</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#0d0f14; --panel:#13161d; --panel2:#1a1e28; --border:#2a2f3e;
+  --accent:#00d4ff; --accent2:#ff6b35; --accent3:#7fff6b;
+  --text:#c8d0e0; --dim:#5a6278; --snap:#ffdd00; --cbg:#0a0c10;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;font-size:13px;height:100vh;display:flex;flex-direction:column;overflow:hidden;user-select:none;}
+
+/* ── MENUBAR ── */
+#menubar{height:28px;background:#0d0f14;border-bottom:1px solid var(--border);display:flex;align-items:stretch;padding:0 8px;position:relative;z-index:200;flex-shrink:0;}
+.mb{position:relative;}
+.mb-btn{height:100%;padding:0 10px;background:none;border:none;color:var(--dim);font:500 12px 'Barlow',sans-serif;cursor:pointer;white-space:nowrap;}
+.mb-btn:hover,.mb-btn.open{background:var(--panel2);color:var(--text);}
+.mb-drop{display:none;position:absolute;top:100%;left:0;min-width:200px;background:#1a1e28;border:1px solid var(--border);box-shadow:0 6px 20px rgba(0,0,0,.6);z-index:300;}
+.mb.open .mb-drop{display:block;}
+.mb-item{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;font-size:12px;cursor:pointer;color:var(--text);gap:30px;}
+.mb-item:hover{background:rgba(0,212,255,.1);color:var(--accent);}
+.mb-item.disabled{color:var(--dim);cursor:default;}
+.mb-item.disabled:hover{background:none;color:var(--dim);}
+.mb-sep-line{height:1px;background:var(--border);margin:3px 0;}
+.mb-item kbd{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);}
+#menubar .logo{font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--accent);letter-spacing:2px;padding:0 12px;display:flex;align-items:center;}
+#menubar .logo span{color:var(--accent2);}
+
+/* ── TOOLBAR ── */
+#toolbar{height:38px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 6px;gap:1px;flex-shrink:0;}
+.tb-sep{width:1px;height:22px;background:var(--border);margin:0 5px;}
+.tb-btn{width:30px;height:28px;background:none;border:1px solid transparent;border-radius:3px;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;position:relative;transition:all .12s;}
+.tb-btn:hover{background:var(--panel2);color:var(--text);border-color:var(--border);}
+.tb-btn.active{background:rgba(0,212,255,.1);color:var(--accent);border-color:rgba(0,212,255,.3);}
+.tb-btn[title]:hover::after{content:attr(title);position:absolute;bottom:-26px;left:50%;transform:translateX(-50%);background:#000;color:var(--text);font-size:10px;padding:2px 6px;border-radius:2px;white-space:nowrap;z-index:500;border:1px solid var(--border);pointer-events:none;}
+.tb-label{font-size:10px;font-weight:600;color:var(--dim);letter-spacing:.8px;padding:0 3px;text-transform:uppercase;}
+
+/* ── MAIN ── */
+#main{flex:1;display:flex;overflow:hidden;}
+
+/* ── LEFT PANEL ── */
+#lp{width:44px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:6px 0;gap:1px;flex-shrink:0;}
+.lp-btn{width:34px;height:34px;background:none;border:1px solid transparent;border-radius:4px;color:var(--dim);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:15px;position:relative;transition:all .12s;}
+.lp-btn:hover{background:var(--panel2);color:var(--text);border-color:var(--border);}
+.lp-btn.active{background:rgba(0,212,255,.12);color:var(--accent);border-color:rgba(0,212,255,.35);box-shadow:0 0 8px rgba(0,212,255,.15);}
+.lp-sep{width:26px;height:1px;background:var(--border);margin:3px 0;}
+.lp-btn[title]:hover::after{content:attr(title);position:absolute;left:40px;top:50%;transform:translateY(-50%);background:#000;color:var(--text);font-size:10px;padding:2px 6px;border-radius:2px;white-space:nowrap;z-index:500;border:1px solid var(--border);pointer-events:none;}
+
+/* ── CANVAS ── */
+#cwrap{flex:1;position:relative;overflow:hidden;background:var(--cbg);}
+#canvas{position:absolute;top:0;left:0;cursor:crosshair;}
+
+/* ── RIGHT PANEL ── */
+#rp{width:190px;background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;}
+.rp-hdr{padding:5px 8px;font-size:9px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--dim);background:var(--panel2);display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);}
+.rp-body{padding:6px 8px;border-bottom:1px solid var(--border);}
+.pr{display:flex;justify-content:space-between;align-items:center;padding:2px 0;border-bottom:1px solid rgba(42,47,62,.4);}
+.pr-l{color:var(--dim);font-size:11px;}.pr-v{color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;}
+.lr{display:flex;align-items:center;gap:5px;padding:3px 4px;cursor:pointer;border-radius:3px;}
+.lr:hover{background:var(--panel2);}
+.lr.active{background:rgba(0,212,255,.08);}
+.ld{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.ln{font-size:11px;flex:1;}
+.lv{font-size:11px;cursor:pointer;color:var(--dim);}
+
+/* ── STATUS BAR ── */
+#statusbar{height:24px;background:var(--panel);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:18px;font-family:'Share Tech Mono',monospace;font-size:10px;flex-shrink:0;}
+.si{color:var(--dim);}.si span{color:var(--accent3);}
+.sb-toggle{padding:0 8px;height:100%;display:flex;align-items:center;font-size:10px;cursor:pointer;color:var(--dim);border-left:1px solid var(--border);}
+.sb-toggle.on{color:var(--accent);background:rgba(0,212,255,.06);}
+.sb-toggle:hover{background:var(--panel2);color:var(--text);}
+#cmdwrap{margin-left:auto;display:flex;align-items:center;gap:5px;border-left:1px solid var(--border);padding-left:10px;}
+#cmd-prompt{color:var(--accent2);font-size:10px;}
+#cmd-input{background:none;border:none;outline:none;color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:10px;width:260px;caret-color:var(--accent);}
+
+/* ── OVERLAYS ── */
+#snap-dot{position:absolute;pointer-events:none;display:none;z-index:50;}
+#snap-dot::before{content:'';position:absolute;width:11px;height:11px;border:2px solid var(--snap);top:-5px;left:-5px;border-radius:2px;}
+#snap-lbl{position:absolute;top:9px;left:9px;font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--snap);white-space:nowrap;}
+#selbox{position:absolute;border:1px dashed var(--accent);background:rgba(0,212,255,.04);pointer-events:none;display:none;}
+#tool-badge{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(13,15,20,.88);border:1px solid var(--border);border-top:2px solid var(--accent);padding:4px 14px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:1px;pointer-events:none;backdrop-filter:blur(4px);}
+#dyn-box{position:absolute;display:none;background:var(--panel);border:1px solid var(--accent);padding:3px 7px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);pointer-events:none;z-index:80;}
+
+/* ── ORTHO INDICATOR ── */
+#ortho-line{position:absolute;pointer-events:none;z-index:40;display:none;}
+
+/* ── DROPDOWN CLOSE OVERLAY ── */
+#menu-veil{display:none;position:fixed;inset:0;z-index:150;}
+/* ── CONTEXT MENU ── */
+#ctx-menu{display:none;position:fixed;min-width:175px;background:#1a1e28;border:1px solid var(--border);box-shadow:0 8px 24px rgba(0,0,0,.7);z-index:1000;font-size:12px;}
+.ctx-item{padding:6px 14px;cursor:pointer;color:var(--text);display:flex;justify-content:space-between;gap:20px;}
+.ctx-item:hover{background:rgba(0,212,255,.1);color:var(--accent);}
+.ctx-item.danger:hover{background:rgba(255,80,80,.1);color:#ff6060;}
+.ctx-sep{height:1px;background:var(--border);margin:3px 0;}
+.ctx-item kbd{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);}
+
+/* ── PROPERTIES DIALOG ── */
+#props-dlg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;align-items:center;justify-content:center;}
+#props-dlg-inner{background:#1a1e28;border:1px solid var(--border);border-top:2px solid var(--accent);width:320px;max-height:80vh;display:flex;flex-direction:column;box-shadow:0 16px 40px rgba(0,0,0,.8);}
+#props-dlg-title{padding:9px 14px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:1px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+#props-dlg-title button{background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px;line-height:1;}
+#props-dlg-title button:hover{color:var(--text);}
+#props-dlg-body{padding:10px 14px;overflow-y:auto;flex:1;}
+.dlg-row{display:flex;align-items:center;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(42,47,62,.5);}
+.dlg-row label{font-size:11px;color:var(--dim);min-width:90px;}
+.dlg-row input,.dlg-row select{background:#0d0f14;border:1px solid var(--border);color:var(--text);padding:2px 5px;font-size:11px;font-family:'Share Tech Mono',monospace;border-radius:2px;outline:none;width:130px;}
+.dlg-row input:focus,.dlg-row select:focus{border-color:var(--accent);}
+.dlg-row input[type=color]{padding:1px;height:22px;cursor:pointer;}
+.dlg-sep{height:1px;background:var(--border);margin:6px 0;}
+#props-dlg-footer{padding:8px 14px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end;}
+.dlg-btn{padding:4px 14px;font-size:11px;font-family:'Barlow',sans-serif;font-weight:600;border:none;border-radius:3px;cursor:pointer;}
+.dlg-btn.ok{background:var(--accent);color:#000;}
+.dlg-btn.ok:hover{background:#00aacc;}
+.dlg-btn.cancel{background:var(--panel2);color:var(--text);border:1px solid var(--border);}
+.dlg-btn.cancel:hover{background:var(--border);}
+</style>
+</head>
+<body>
+
+<!-- MENU BAR -->
+<div id="menubar">
+  <div class="logo">OPEN<span>DRAFT</span></div>
+
+  <!-- FILE -->
+  <div class="mb" id="mb-file">
+    <button class="mb-btn" onclick="mbToggle('mb-file')">File</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="newFile()">New Drawing <kbd>Ctrl+N</kbd></div>
+      <div class="mb-item" onclick="triggerOpen()">Open DXF… <kbd>Ctrl+O</kbd></div>
+      <div class="mb-item" onclick="triggerOpenAppend()">Insert DXF… <kbd>(merge)</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="savePNG()">Save as PNG <kbd>Ctrl+S</kbd></div>
+      <div class="mb-item" onclick="exportPDF()">Print / Export PDF <kbd>PLOT</kbd></div>
+      <div class="mb-item" onclick="exportDXF()">Export DXF (AutoCAD) <kbd>DXF</kbd></div>
+    </div>
+  </div>
+
+  <!-- EDIT -->
+  <div class="mb" id="mb-edit">
+    <button class="mb-btn" onclick="mbToggle('mb-edit')">Edit</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="undo()">Undo <kbd>Ctrl+Z</kbd></div>
+      <div class="mb-item" onclick="redo()">Redo <kbd>Ctrl+Y</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="selectAll()">Select All <kbd>Ctrl+A</kbd></div>
+      <div class="mb-item" onclick="deleteSelected()">Delete Selected <kbd>Del</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="copySelected()">Copy <kbd>CO</kbd></div>
+    </div>
+  </div>
+
+  <!-- VIEW -->
+  <div class="mb" id="mb-view">
+    <button class="mb-btn" onclick="mbToggle('mb-view')">View</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="fitAll()">Zoom Extents <kbd>ZE / ZA</kbd></div>
+      <div class="mb-item" onclick="zoomAt(1.5)">Zoom In <kbd>+</kbd></div>
+      <div class="mb-item" onclick="zoomAt(0.667)">Zoom Out <kbd>−</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="toggleGrid()">Toggle Grid <kbd>F7</kbd></div>
+      <div class="mb-item" onclick="toggleSnap()">Toggle Snap <kbd>F9</kbd></div>
+      <div class="mb-item" onclick="toggleOrtho()">Toggle Ortho <kbd>F8</kbd></div>
+    </div>
+  </div>
+
+  <!-- DRAW -->
+  <div class="mb" id="mb-draw">
+    <button class="mb-btn" onclick="mbToggle('mb-draw')">Draw</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="setTool('line');mbClose()">Line <kbd>L</kbd></div>
+      <div class="mb-item" onclick="setTool('polyline');mbClose()">Polyline <kbd>PL</kbd></div>
+      <div class="mb-item" onclick="setTool('rect');mbClose()">Rectangle <kbd>REC</kbd></div>
+      <div class="mb-item" onclick="setTool('circle');mbClose()">Circle <kbd>C</kbd></div>
+      <div class="mb-item" onclick="setTool('arc');mbClose()">Arc <kbd>ARC</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="setTool('text');mbClose()">Text <kbd>T</kbd></div>
+      <div class="mb-item" onclick="setTool('dim');mbClose()">Linear Dimension <kbd>DLI</kbd></div>
+      <div class="mb-item" onclick="setTool('measure');mbClose()">Measure Distance <kbd>DI</kbd></div>
+    </div>
+  </div>
+
+  <!-- MODIFY -->
+  <div class="mb" id="mb-mod">
+    <button class="mb-btn" onclick="mbToggle('mb-mod')">Modify</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="setTool('move');mbClose()">Move <kbd>M</kbd></div>
+      <div class="mb-item" onclick="setTool('copy');mbClose()">Copy <kbd>CO</kbd></div>
+      <div class="mb-item" onclick="setTool('rotate');mbClose()">Rotate <kbd>RO</kbd></div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="deleteSelected();mbClose()">Erase <kbd>E</kbd></div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="mb" id="mb-set">
+    <button class="mb-btn" onclick="mbToggle('mb-set')">Settings</button>
+    <div class="mb-drop">
+      <div class="mb-item" onclick="addLayer();mbClose()">New Layer</div>
+      <div class="mb-sep-line"></div>
+      <div class="mb-item" onclick="changeGridSize();mbClose()">Grid Spacing…</div>
+      <div class="mb-item" onclick="changeLineweight();mbClose()">Line Weight…</div>
+    </div>
+  </div>
+</div>
+<div id="menu-veil" onclick="mbClose()"></div>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <span class="tb-label">File</span>
+  <button class="tb-btn" title="New" onclick="newFile()">🗋</button>
+  <button class="tb-btn" title="Open DXF  Ctrl+O" onclick="triggerOpen()">📂</button>
+  <button class="tb-btn" title="PNG" onclick="savePNG()">💾</button>
+  <button class="tb-btn" title="PDF" onclick="exportPDF()" style="font-size:10px;font-weight:700;font-family:'Barlow',sans-serif;">PDF</button>
+  <button class="tb-btn" title="DXF" onclick="exportDXF()" style="font-size:10px;font-weight:700;font-family:'Barlow',sans-serif;">DXF</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Edit</span>
+  <button class="tb-btn" title="Undo Ctrl+Z" onclick="undo()">↩</button>
+  <button class="tb-btn" title="Redo Ctrl+Y" onclick="redo()">↪</button>
+  <button class="tb-btn" title="Delete Del" onclick="deleteSelected()">🗑</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">View</span>
+  <button class="tb-btn" title="Zoom In +" onclick="zoomAt(1.25)">⊕</button>
+  <button class="tb-btn" title="Zoom Out -" onclick="zoomAt(0.8)">⊖</button>
+  <button class="tb-btn" title="Zoom Extents ZE" onclick="fitAll()">⊞</button>
+  <button class="tb-btn" id="btn-grid" title="Grid F7" onclick="toggleGrid()">▦</button>
+  <button class="tb-btn" id="btn-snap" title="Snap F9" onclick="toggleSnap()">🧲</button>
+  <button class="tb-btn" id="btn-ortho" title="Ortho F8" onclick="toggleOrtho()">⊣</button>
+  <div class="tb-sep"></div>
+  <span class="tb-label">LW</span>
+  <select id="lw-sel" style="background:var(--panel2);color:var(--text);border:1px solid var(--border);padding:2px 4px;border-radius:3px;font-size:11px;outline:none;">
+    <option value="0.5">0.5</option><option value="1" selected>1</option>
+    <option value="2">2</option><option value="3">3</option>
+  </select>
+  <div class="tb-sep"></div>
+  <span class="tb-label">Color</span>
+  <input type="color" id="stroke-col" value="#00d4ff" style="width:26px;height:22px;border:1px solid var(--border);border-radius:3px;cursor:pointer;padding:1px;">
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <!-- LEFT TOOL PANEL -->
+  <div id="lp">
+    <button class="lp-btn active" id="t-select"  title="Select [ESC]"   onclick="setTool('select')">↖</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="t-line"     title="Line [L]"         onclick="setTool('line')">╱</button>
+    <button class="lp-btn" id="t-polyline" title="Polyline [PL]"    onclick="setTool('polyline')">⌒</button>
+    <button class="lp-btn" id="t-rect"     title="Rectangle [REC]"  onclick="setTool('rect')">▭</button>
+    <button class="lp-btn" id="t-circle"   title="Circle [C]"       onclick="setTool('circle')">○</button>
+    <button class="lp-btn" id="t-arc"      title="Arc [ARC]"        onclick="setTool('arc')">◠</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="t-text"     title="Text [T]"         onclick="setTool('text')">T</button>
+    <button class="lp-btn" id="t-dim"      title="Dimension [DLI]"  onclick="setTool('dim')">↔</button>
+    <div class="lp-sep"></div>
+    <button class="lp-btn" id="t-move"     title="Move [M]"         onclick="setTool('move')">✛</button>
+    <button class="lp-btn" id="t-copy"     title="Copy [CO]"        onclick="setTool('copy')">⿻</button>
+    <button class="lp-btn" id="t-rotate"   title="Rotate [RO]"      onclick="setTool('rotate')">↻</button>
+    <button class="lp-btn" id="t-measure"  title="Measure [DI]"     onclick="setTool('measure')">📏</button>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="cwrap">
+    <canvas id="canvas"></canvas>
+    <div id="snap-dot"><div id="snap-lbl"></div></div>
+    <div id="selbox"></div>
+    <div id="tool-badge">SELECT</div>
+    <div id="dyn-box"></div>
+    <canvas id="ortho-line" style="position:absolute;top:0;left:0;pointer-events:none;z-index:40;"></canvas>
+    <!-- Drag-drop zone shown when no objects exist -->
+    <div id="drop-zone" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;z-index:10;">
+      <div style="border:2px dashed #2a2f3e;border-radius:12px;padding:40px 60px;text-align:center;opacity:0.4;">
+        <div style="font-size:36px;margin-bottom:12px;">📂</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#5a6278;">Drag & drop a DXF file here</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#3a4258;margin-top:6px;">or use File → Open DXF</div>
+      </div>
+    </div>
+    <div id="drop-active" style="position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,212,255,0.06);border:2px dashed #00d4ff;z-index:60;pointer-events:none;">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:16px;color:#00d4ff;">Drop DXF to open</div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rp">
+    <div class="rp-hdr">Properties</div>
+    <div class="rp-body">
+      <div class="pr"><span class="pr-l">Type</span><span class="pr-v" id="pp-type">—</span></div>
+      <div class="pr"><span class="pr-l">Length</span><span class="pr-v" id="pp-len">—</span></div>
+      <div class="pr"><span class="pr-l">Angle</span><span class="pr-v" id="pp-ang">—</span></div>
+      <div class="pr"><span class="pr-l">X</span><span class="pr-v" id="pp-x">—</span></div>
+      <div class="pr"><span class="pr-l">Y</span><span class="pr-v" id="pp-y">—</span></div>
+      <div class="pr"><span class="pr-l">Layer</span><span class="pr-v" id="pp-lay">0</span></div>
+    </div>
+    <div class="rp-hdr">Layers <button style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:13px;" onclick="addLayer()">+</button></div>
+    <div class="rp-body" id="layer-list"></div>
+    <div class="rp-hdr">Object List</div>
+    <div style="flex:1;overflow:auto;padding:4px 6px;font-family:'Share Tech Mono',monospace;font-size:10px;" id="obj-list"></div>
+    <div class="rp-hdr">Snap</div>
+    <div class="rp-body" style="font-size:11px;">
+      <label style="display:flex;gap:5px;padding:2px 0;cursor:pointer;"><input type="checkbox" id="sn-end" checked> Endpoint</label>
+      <label style="display:flex;gap:5px;padding:2px 0;cursor:pointer;"><input type="checkbox" id="sn-mid" checked> Midpoint</label>
+      <label style="display:flex;gap:5px;padding:2px 0;cursor:pointer;"><input type="checkbox" id="sn-cen" checked> Center</label>
+      <label style="display:flex;gap:5px;padding:2px 0;cursor:pointer;"><input type="checkbox" id="sn-grid" checked> Grid</label>
+      <label style="display:flex;gap:5px;padding:2px 0;cursor:pointer;"><input type="checkbox" id="sn-perp" checked> Perpendicular</label>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS BAR -->
+<div id="statusbar">
+  <div class="si">X: <span id="sx">0.00</span></div>
+  <div class="si">Y: <span id="sy">0.00</span></div>
+  <div class="si">Δ: <span id="sd">—</span></div>
+  <div class="si">∠: <span id="sa">—</span></div>
+  <div class="si">Objs: <span id="sn">0</span></div>
+  <div class="sb-toggle on"  id="tog-grid"  onclick="toggleGrid()">GRID</div>
+  <div class="sb-toggle on"  id="tog-snap"  onclick="toggleSnap()">SNAP</div>
+  <div class="sb-toggle"     id="tog-ortho" onclick="toggleOrtho()">ORTHO</div>
+  <div id="cmdwrap">
+    <span id="cmd-prompt">Command:</span>
+    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type L, PL, REC, C, ARC, M, CO, E …">
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// GLOBALS
+// ══════════════════════════════════════════════
+const canvas = document.getElementById('canvas');
+const ctx    = canvas.getContext('2d');
+const wrap   = document.getElementById('cwrap');
+let W=0, H=0;
+let pan={x:0,y:0}, zoom=1;
+let tool='select';
+let gridOn=true, snapOn=true, orthoOn=false;
+let gridSize=20;
+
+let objects=[], selected=[], undoStack=[], redoStack=[];
+let layers=[
+  {name:'0',        color:'#00d4ff', visible:true},
+  {name:'Construction', color:'#ff6b35', visible:true},
+  {name:'Dimensions',   color:'#7fff6b', visible:true},
+];
+let activeLayer=0;
+
+let drawing=false, dPts=[];   // in-progress world points
+let mouseW={x:0,y:0};         // current world mouse
+let snapPt=null, snapType='';
+
+let moveBase=null, moveCopies=null;
+let lastTool='select';
+
+// ══════════════════════════════════════════════
+// MENU SYSTEM
+// ══════════════════════════════════════════════
+function mbToggle(id) {
+  const isOpen = document.getElementById(id).classList.contains('open');
+  mbClose();
+  if (!isOpen) {
+    document.getElementById(id).classList.add('open');
+    document.getElementById(id).querySelector('.mb-btn').classList.add('open');
+    document.getElementById('menu-veil').style.display='block';
+  }
+}
+function mbClose() {
+  document.querySelectorAll('.mb').forEach(m=>{
+    m.classList.remove('open');
+    m.querySelector('.mb-btn').classList.remove('open');
+  });
+  document.getElementById('menu-veil').style.display='none';
+}
+
+// ══════════════════════════════════════════════
+// RESIZE
+// ══════════════════════════════════════════════
+function resize() {
+  const r=wrap.getBoundingClientRect();
+  W=r.width; H=r.height;
+  canvas.width=W; canvas.height=H;
+  const ol=document.getElementById('ortho-line');
+  ol.width=W; ol.height=H;
+  if(pan.x===0&&pan.y===0){pan.x=W/2;pan.y=H/2;}
+  render();
+}
+window.addEventListener('resize',resize);
+
+// ══════════════════════════════════════════════
+// COORDINATE TRANSFORMS
+// ══════════════════════════════════════════════
+function w2s(p){return{x:p.x*zoom+pan.x, y:-p.y*zoom+pan.y};}
+function s2w(p){return{x:(p.x-pan.x)/zoom, y:-(p.y-pan.y)/zoom};}
+function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);}
+function wAngle(a,b){return Math.atan2(b.y-a.y,b.x-a.x)*180/Math.PI;}
+
+// ══════════════════════════════════════════════
+// ORTHO CONSTRAINT  — locks to nearest 0/90/180/270
+// ══════════════════════════════════════════════
+function applyOrtho(rawW, base) {
+  const dx = rawW.x - base.x;
+  const dy = rawW.y - base.y;
+  if (Math.abs(dx) >= Math.abs(dy)) {
+    return { x: rawW.x, y: base.y };   // horizontal
+  } else {
+    return { x: base.x, y: rawW.y };   // vertical
+  }
+}
+
+// ══════════════════════════════════════════════
+// SNAP ENGINE
+// ══════════════════════════════════════════════
+function computeSnap(rawW) {
+  const thr = 14/zoom;
+  let best=null, bestD=thr, bestType='';
+
+  // Grid snap
+  if(document.getElementById('sn-grid').checked && gridOn) {
+    const gx=Math.round(rawW.x/gridSize)*gridSize;
+    const gy=Math.round(rawW.y/gridSize)*gridSize;
+    const gp={x:gx,y:gy};
+    const d=dist(rawW,gp);
+    if(d<bestD){best=gp;bestD=d;bestType='GRID';}
+  }
+
+  // Geometry snaps
+  for(const obj of objects) {
+    if(!layers[obj.layerIdx].visible) continue;
+    for(const [pt,type] of getSnapPts(obj)) {
+      const d=dist(rawW,pt);
+      if(d<bestD){best=pt;bestD=d;bestType=type;}
+    }
+  }
+
+  // Ortho constraint on top of whatever we found
+  if(orthoOn && dPts.length>0) {
+    const base=dPts[dPts.length-1];
+    const constrained=applyOrtho(best||rawW, base);
+    // Re-snap constrained point to grid if closer
+    if(document.getElementById('sn-grid').checked && gridOn) {
+      const gx=Math.round(constrained.x/gridSize)*gridSize;
+      const gy=Math.round(constrained.y/gridSize)*gridSize;
+      const gp={x:gx,y:gy};
+      if(dist(constrained,gp)<thr) {
+        snapPt=gp; snapType='GRID+ORTHO'; return snapPt;
+      }
+    }
+    snapPt=constrained;
+    snapType=bestType ? bestType+'+ORTHO' : 'ORTHO';
+    return snapPt;
+  }
+
+  snapPt=best||rawW;
+  snapType=bestType;
+  return snapPt;
+}
+
+function getSnapPts(obj) {
+  const pts=[];
+  const endOn=document.getElementById('sn-end').checked;
+  const midOn=document.getElementById('sn-mid').checked;
+  const cenOn=document.getElementById('sn-cen').checked;
+
+  if(obj.type==='line') {
+    if(endOn){pts.push([obj.p1,'END'],[obj.p2,'END']);}
+    if(midOn){pts.push([{x:(obj.p1.x+obj.p2.x)/2,y:(obj.p1.y+obj.p2.y)/2},'MID']);}
+  } else if(obj.type==='circle') {
+    if(cenOn){pts.push([obj.center,'CEN']);}
+    if(endOn){
+      pts.push(
+        [{x:obj.center.x+obj.radius,y:obj.center.y},'QUA'],
+        [{x:obj.center.x-obj.radius,y:obj.center.y},'QUA'],
+        [{x:obj.center.x,y:obj.center.y+obj.radius},'QUA'],
+        [{x:obj.center.x,y:obj.center.y-obj.radius},'QUA']
+      );
+    }
+  } else if(obj.type==='rect') {
+    const {p1,p2}=obj;
+    const c=[p1,{x:p2.x,y:p1.y},p2,{x:p1.x,y:p2.y}];
+    if(endOn)c.forEach(p=>pts.push([p,'END']));
+    if(midOn){
+      pts.push([{x:(p1.x+p2.x)/2,y:p1.y},'MID'],[{x:(p1.x+p2.x)/2,y:p2.y},'MID'],
+               [{x:p1.x,y:(p1.y+p2.y)/2},'MID'],[{x:p2.x,y:(p1.y+p2.y)/2},'MID']);
+    }
+    if(cenOn)pts.push([{x:(p1.x+p2.x)/2,y:(p1.y+p2.y)/2},'CEN']);
+  } else if(obj.type==='polyline') {
+    if(endOn) obj.pts.forEach(p=>pts.push([p,'END']));
+    if(midOn) {
+      for(let i=0;i<obj.pts.length-1;i++)
+        pts.push([{x:(obj.pts[i].x+obj.pts[i+1].x)/2,y:(obj.pts[i].y+obj.pts[i+1].y)/2},'MID']);
+    }
+  }
+  return pts;
+}
+
+// ══════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════
+function render() {
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='#0a0c10'; ctx.fillRect(0,0,W,H);
+  if(gridOn) drawGrid();
+  for(const obj of objects){
+    if(!layers[obj.layerIdx].visible) continue;
+    drawObj(obj, selected.includes(obj));
+  }
+  drawPreview();
+  drawOrthoLine();
+  updateSnapDot();
+  updateStatusBar();
+  updateDynBox();
+}
+
+function drawGrid() {
+  const minor=gridSize*zoom, major=minor*5;
+  ctx.save();
+  ctx.lineWidth=0.5;
+  ctx.strokeStyle='rgba(38,48,68,0.7)';
+  ctx.beginPath();
+  for(let x=pan.x%minor;x<W;x+=minor){ctx.moveTo(x,0);ctx.lineTo(x,H);}
+  for(let y=pan.y%minor;y<H;y+=minor){ctx.moveTo(0,y);ctx.lineTo(W,y);}
+  ctx.stroke();
+  ctx.lineWidth=1;
+  ctx.strokeStyle='rgba(55,70,95,0.6)';
+  ctx.beginPath();
+  for(let x=pan.x%major;x<W;x+=major){ctx.moveTo(x,0);ctx.lineTo(x,H);}
+  for(let y=pan.y%major;y<H;y+=major){ctx.moveTo(0,y);ctx.lineTo(W,y);}
+  ctx.stroke();
+  // Origin
+  const o=w2s({x:0,y:0});
+  ctx.strokeStyle='rgba(255,255,255,0.12)'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(o.x-14,o.y);ctx.lineTo(o.x+14,o.y);
+  ctx.moveTo(o.x,o.y-14);ctx.lineTo(o.x,o.y+14);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawObj(obj, sel) {
+  const lc=layers[obj.layerIdx]?.color||'#00d4ff';
+  ctx.strokeStyle=sel?'#ffffff':(obj.color||lc);
+  ctx.lineWidth=(obj.lw||1)*(sel?1.8:1);
+  ctx.lineCap='round'; ctx.lineJoin='round';
+
+  if(obj.type==='line') {
+    const a=w2s(obj.p1),b=w2s(obj.p2);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    if(sel){drawHandle(a);drawHandle(b);}
+  } else if(obj.type==='rect') {
+    const a=w2s(obj.p1),b=w2s(obj.p2);
+    const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y),w=Math.abs(b.x-a.x),h=Math.abs(b.y-a.y);
+    ctx.beginPath();ctx.rect(x,y,w,h);ctx.stroke();
+    if(sel){drawHandle(a);drawHandle(b);drawHandle({x:b.x,y:a.y});drawHandle({x:a.x,y:b.y});}
+  } else if(obj.type==='circle') {
+    const c=w2s(obj.center);
+    ctx.beginPath();ctx.arc(c.x,c.y,obj.radius*zoom,0,Math.PI*2);ctx.stroke();
+    if(sel){drawHandle(c);drawHandle(w2s({x:obj.center.x+obj.radius,y:obj.center.y}));}
+  } else if(obj.type==='arc') {
+    const c=w2s(obj.center);
+    const sa=-obj.startAngle*Math.PI/180, ea=-obj.endAngle*Math.PI/180;
+    ctx.beginPath();ctx.arc(c.x,c.y,obj.radius*zoom,sa,ea,false);ctx.stroke();
+  } else if(obj.type==='polyline') {
+    if(obj.pts.length<2) return;
+    const s=w2s(obj.pts[0]);
+    ctx.beginPath();ctx.moveTo(s.x,s.y);
+    for(let i=1;i<obj.pts.length;i++){const p=w2s(obj.pts[i]);ctx.lineTo(p.x,p.y);}
+    if(obj.closed)ctx.closePath();
+    ctx.stroke();
+    if(sel) obj.pts.forEach(p=>drawHandle(w2s(p)));
+  } else if(obj.type==='text') {
+    const s=w2s(obj.pos);
+    ctx.fillStyle=obj.color||lc;
+    ctx.font=`${Math.max(8,(obj.size||12)*zoom)}px Barlow,sans-serif`;
+    ctx.fillText(obj.text,s.x,s.y);
+    if(sel) drawHandle(s);
+  } else if(obj.type==='dim') {
+    drawDim(obj);
+    if(sel){drawHandle(w2s(obj.p1));drawHandle(w2s(obj.p2));}
+  }
+}
+
+function drawHandle(s) {
+  ctx.fillStyle='rgba(0,212,255,0.15)';
+  ctx.strokeStyle='#00d4ff'; ctx.lineWidth=1;
+  ctx.beginPath();ctx.rect(s.x-4,s.y-4,8,8);
+  ctx.fill();ctx.stroke();
+}
+
+function drawDim(obj) {
+  const a=w2s(obj.p1),b=w2s(obj.p2);
+  const off=22;
+  const dx=b.x-a.x,dy=b.y-a.y,len=Math.sqrt(dx*dx+dy*dy);
+  if(len<1)return;
+  const nx=-dy/len*off,ny=dx/len*off;
+  const col=layers[obj.layerIdx]?.color||'#7fff6b';
+  ctx.strokeStyle=col;ctx.lineWidth=0.8;ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.moveTo(a.x+nx,a.y+ny);ctx.lineTo(b.x+nx,b.y+ny);
+  ctx.moveTo(a.x,a.y);ctx.lineTo(a.x+nx,a.y+ny);
+  ctx.moveTo(b.x,b.y);ctx.lineTo(b.x+nx,b.y+ny);
+  ctx.stroke();
+  // arrows
+  const ang=Math.atan2(b.y-a.y,b.x-a.x),as=9;
+  ctx.beginPath();
+  ctx.moveTo(a.x+nx,a.y+ny);ctx.lineTo(a.x+nx+Math.cos(ang)*as,a.y+ny+Math.sin(ang)*as);
+  ctx.moveTo(b.x+nx,b.y+ny);ctx.lineTo(b.x+nx-Math.cos(ang)*as,b.y+ny-Math.sin(ang)*as);
+  ctx.stroke();
+  // label
+  const d=dist(obj.p1,obj.p2).toFixed(2);
+  ctx.fillStyle=col;
+  ctx.font=`${10*Math.min(zoom,1.5)}px Share Tech Mono,monospace`;
+  ctx.textAlign='center';
+  ctx.fillText(d,(a.x+b.x)/2+nx,(a.y+b.y)/2+ny-7);
+  ctx.textAlign='left';
+}
+
+function drawPreview() {
+  if(!drawing||dPts.length===0) return;
+  const cur=snapPt||mouseW;
+  ctx.save();
+  ctx.strokeStyle='rgba(0,212,255,0.55)';
+  ctx.lineWidth=1;ctx.setLineDash([5,3]);
+  ctx.lineCap='round';
+
+  if(tool==='line'||tool==='dim'||tool==='measure') {
+    const a=w2s(dPts[0]),b=w2s(cur);
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  } else if(tool==='rect') {
+    const a=w2s(dPts[0]),b=w2s(cur);
+    ctx.beginPath();ctx.rect(Math.min(a.x,b.x),Math.min(a.y,b.y),Math.abs(b.x-a.x),Math.abs(b.y-a.y));ctx.stroke();
+  } else if(tool==='circle') {
+    const c=w2s(dPts[0]),r=dist(c,w2s(cur));
+    ctx.beginPath();ctx.arc(c.x,c.y,r,0,Math.PI*2);ctx.stroke();
+  } else if(tool==='arc') {
+    if(dPts.length===1){
+      const c=w2s(dPts[0]),b=w2s(cur);
+      ctx.beginPath();ctx.moveTo(c.x,c.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+    } else if(dPts.length===2){
+      const c=w2s(dPts[0]),r=dist(w2s(dPts[0]),w2s(dPts[1]));
+      const sa=Math.atan2(-(dPts[1].y-dPts[0].y),dPts[1].x-dPts[0].x);
+      const ea=Math.atan2(-(cur.y-dPts[0].y),cur.x-dPts[0].x);
+      ctx.beginPath();ctx.arc(c.x,c.y,r,sa,ea);ctx.stroke();
+    }
+  } else if(tool==='polyline') {
+    const s=w2s(dPts[0]);
+    ctx.beginPath();ctx.moveTo(s.x,s.y);
+    for(let i=1;i<dPts.length;i++){const p=w2s(dPts[i]);ctx.lineTo(p.x,p.y);}
+    const b=w2s(cur);ctx.lineTo(b.x,b.y);ctx.stroke();
+  } else if((tool==='move'||tool==='copy')&&moveBase) {
+    const dx=cur.x-moveBase.x, dy=cur.y-moveBase.y;
+    ctx.strokeStyle='rgba(0,212,255,0.35)';
+    for(const obj of moveCopies) {
+      const ghost=JSON.parse(JSON.stringify(obj));
+      translateObj(ghost,dx,dy);
+      drawObj(ghost,false);
+    }
+  }
+  ctx.restore();
+}
+
+function drawOrthoLine() {
+  const ol=document.getElementById('ortho-line').getContext('2d');
+  const oc=document.getElementById('ortho-line');
+  ol.clearRect(0,0,W,H);
+  if(!orthoOn||!drawing||dPts.length===0) return;
+  const base=w2s(dPts[dPts.length-1]);
+  const cur=w2s(snapPt||mouseW);
+  ol.strokeStyle='rgba(255,255,0,0.12)';
+  ol.lineWidth=1;
+  ol.setLineDash([4,4]);
+  ol.beginPath();
+  // Show the locked axis
+  if(Math.abs(cur.x-base.x)>=Math.abs(cur.y-base.y)){
+    ol.moveTo(0,base.y);ol.lineTo(W,base.y);
+  } else {
+    ol.moveTo(base.x,0);ol.lineTo(base.x,H);
+  }
+  ol.stroke();
+  ol.setLineDash([]);
+}
+
+function updateDynBox() {
+  const db=document.getElementById('dyn-box');
+  if(!drawing||dPts.length===0){db.style.display='none';return;}
+  const cur=snapPt||mouseW;
+  const base=dPts[dPts.length-1];
+  const d=dist(base,cur).toFixed(2);
+  const a=wAngle(base,cur).toFixed(1);
+  const sc=w2s(cur);
+  db.style.display='block';
+  db.style.left=(sc.x+16)+'px';
+  db.style.top=(sc.y-20)+'px';
+  if(tool==='circle'&&dPts.length===1) db.textContent=`r=${dist(dPts[0],cur).toFixed(2)}`;
+  else db.textContent=`${d}  ∠${a}°`;
+}
+
+function updateSnapDot() {
+  const sd=document.getElementById('snap-dot');
+  const sl=document.getElementById('snap-lbl');
+  if(snapPt&&snapType&&snapOn){
+    const s=w2s(snapPt);
+    sd.style.display='block';
+    sd.style.left=s.x+'px';sd.style.top=s.y+'px';
+    sl.textContent=snapType;
+  } else sd.style.display='none';
+}
+
+function updateStatusBar() {
+  document.getElementById('sx').textContent=mouseW.x.toFixed(2);
+  document.getElementById('sy').textContent=mouseW.y.toFixed(2);
+  document.getElementById('sn').textContent=objects.length;
+  if(drawing&&dPts.length>0){
+    const base=dPts[dPts.length-1],cur=snapPt||mouseW;
+    document.getElementById('sd').textContent=dist(base,cur).toFixed(2);
+    document.getElementById('sa').textContent=wAngle(base,cur).toFixed(1)+'°';
+  } else {
+    document.getElementById('sd').textContent='—';
+    document.getElementById('sa').textContent='—';
+  }
+  document.getElementById('tb-zoom-label')&&(document.getElementById('tb-zoom-label').textContent=`${zoom.toFixed(2)}×`);
+}
+
+// ══════════════════════════════════════════════
+// MOUSE INPUT
+// ══════════════════════════════════════════════
+let isPanning=false, panStart=null, panOrigin=null;
+// Drag-select state
+let selDragging=false, selStart=null, selStartW=null;
+// Drag-move state (select tool, dragging selected objects)
+let moveDragging=false, moveDragStart=null, moveDragOrigin=null;
+// Distinguish click vs drag
+let mouseDownPt=null, mouseMoved=false;
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup',   onUp);
+canvas.addEventListener('dblclick',  onDbl);
+canvas.addEventListener('contextmenu', onContextMenu);
+canvas.addEventListener('wheel', onWheel, {passive:false});
+
+function canvasPt(e){const r=canvas.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+
+function onDown(e) {
+  mbClose(); closeContextMenu();
+  const sp=canvasPt(e);
+  const rawW=s2w(sp);
+
+  // Middle mouse or Alt+left = pan
+  if(e.button===1||(e.button===0&&e.altKey)){
+    isPanning=true;panStart=sp;panOrigin={...pan};
+    canvas.style.cursor='grabbing';return;
+  }
+
+  // Right click handled by contextmenu event
+  if(e.button===2){
+    if(tool!=='select') cancelDrawing();
+    return;
+  }
+  if(e.button!==0)return;
+
+  mouseDownPt=sp; mouseMoved=false;
+
+  const cur=snapOn ? computeSnap(rawW) : rawW;
+
+  // ── SELECT tool ──
+  if(tool==='select'){
+    const hit=hitTest(cur);
+    if(hit){
+      // If not already selected, select it (shift adds)
+      if(!selected.includes(hit)){
+        selected=e.shiftKey?[...selected,hit]:[hit];
+      } else if(e.shiftKey){
+        selected=selected.filter(o=>o!==hit);
+        updatePropsPanel();render();return;
+      }
+      // Begin potential drag-move
+      moveDragging=true;
+      moveDragStart={...cur};
+      moveDragOrigin=selected.map(o=>JSON.parse(JSON.stringify(o)));
+      updatePropsPanel();render();
+    } else {
+      // Begin window/crossing selection drag
+      if(!e.shiftKey) selected=[];
+      selDragging=true; selStart=sp; selStartW={...rawW};
+      updatePropsPanel();render();
+    }
+    return;
+  }
+
+  // ── MOVE tool ──
+  if(tool==='move'){
+    if(!drawing){
+      if(selected.length===0){const h=hitTest(cur);if(h)selected=[h];}
+      if(selected.length>0){drawing=true;dPts=[{...cur}];moveBase={...cur};moveCopies=selected.map(o=>JSON.parse(JSON.stringify(o)));}
+    } else {
+      const dx=cur.x-moveBase.x, dy=cur.y-moveBase.y;
+      saveUndo();
+      selected.forEach(o=>translateObj(o,dx,dy));
+      cancelDrawing();render();
+    }
+    return;
+  }
+
+  // ── COPY tool ──
+  if(tool==='copy'){
+    if(!drawing){
+      if(selected.length===0){const h=hitTest(cur);if(h)selected=[h];}
+      if(selected.length>0){drawing=true;dPts=[{...cur}];moveBase={...cur};moveCopies=selected.map(o=>JSON.parse(JSON.stringify(o)));}
+    } else {
+      const dx=cur.x-moveBase.x,dy=cur.y-moveBase.y;
+      saveUndo();
+      selected.forEach(o=>{const c=JSON.parse(JSON.stringify(o));translateObj(c,dx,dy);objects.push(c);});
+      cancelDrawing();render();
+    }
+    return;
+  }
+
+  // ── ROTATE tool ──
+  if(tool==='rotate'){
+    if(!drawing){
+      if(selected.length===0){const h=hitTest(cur);if(h)selected=[h];}
+      if(selected.length>0){drawing=true;dPts=[{...cur}];moveBase={...cur};moveCopies=selected.map(o=>JSON.parse(JSON.stringify(o)));}
+    } else {
+      const angle=wAngle(moveBase,cur)*Math.PI/180;
+      saveUndo();
+      selected.forEach(o=>rotateObj(o,moveBase,angle));
+      cancelDrawing();render();
+    }
+    return;
+  }
+
+  // ── DRAWING TOOLS ──
+  const lw=parseFloat(document.getElementById('lw-sel').value);
+  const col=document.getElementById('stroke-col').value;
+
+  if(tool==='line'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{
+      saveUndo();
+      objects.push({type:'line',p1:{...dPts[0]},p2:{...cur},lw,color:col,layerIdx:activeLayer});
+      if(e.shiftKey){dPts=[{...cur}];}else{cancelDrawing();}
+      render();updateObjList();
+    }
+  } else if(tool==='polyline'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{dPts.push({...cur});}
+  } else if(tool==='rect'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{
+      saveUndo();
+      objects.push({type:'rect',p1:{...dPts[0]},p2:{...cur},lw,color:col,layerIdx:activeLayer});
+      cancelDrawing();render();updateObjList();
+    }
+  } else if(tool==='circle'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{
+      const r=dist(dPts[0],cur);
+      saveUndo();
+      objects.push({type:'circle',center:{...dPts[0]},radius:r,lw,color:col,layerIdx:activeLayer});
+      cancelDrawing();render();updateObjList();
+    }
+  } else if(tool==='arc'){
+    dPts.push({...cur});
+    if(!drawing)drawing=true;
+    if(dPts.length===3){
+      const sa=wAngle(dPts[0],dPts[1]),ea=wAngle(dPts[0],dPts[2]);
+      saveUndo();
+      objects.push({type:'arc',center:{...dPts[0]},radius:dist(dPts[0],dPts[1]),startAngle:sa,endAngle:ea,lw,color:col,layerIdx:activeLayer});
+      cancelDrawing();render();updateObjList();
+    }
+  } else if(tool==='dim'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{
+      saveUndo();
+      objects.push({type:'dim',p1:{...dPts[0]},p2:{...cur},layerIdx:activeLayer});
+      cancelDrawing();render();updateObjList();
+    }
+  } else if(tool==='measure'){
+    if(!drawing){drawing=true;dPts=[{...cur}];}
+    else{
+      const d=dist(dPts[0],cur).toFixed(3),a=wAngle(dPts[0],cur).toFixed(1);
+      alert(`Distance: ${d}\nAngle: ${a}°`);
+      cancelDrawing();
+    }
+  } else if(tool==='text'){
+    const txt=prompt('Enter text:');
+    if(txt){saveUndo();objects.push({type:'text',pos:{...cur},text:txt,size:14,color:col,layerIdx:activeLayer});render();updateObjList();}
+  }
+}
+
+function onMove(e) {
+  const sp=canvasPt(e);
+
+  if(isPanning){
+    pan.x=panOrigin.x+(sp.x-panStart.x);
+    pan.y=panOrigin.y+(sp.y-panStart.y);
+    render();return;
+  }
+
+  // Track if mouse actually moved (for click vs drag distinction)
+  if(mouseDownPt){
+    if(Math.abs(sp.x-mouseDownPt.x)>3||Math.abs(sp.y-mouseDownPt.y)>3) mouseMoved=true;
+  }
+
+  // Drag-move selected objects
+  if(moveDragging && mouseMoved){
+    const rawW=s2w(sp);
+    const cur=snapOn?computeSnap(rawW):rawW;
+    // Restore originals, then apply live offset for preview
+    objects=objects.map(o=>{
+      const orig=moveDragOrigin.find(c=>c===o||selected.includes(o)&&moveDragOrigin[selected.indexOf(o)]===c);
+      return o;
+    });
+    mouseW=cur;
+    render();
+    // Draw drag preview on top
+    drawMoveDragPreview(cur);
+    return;
+  }
+
+  // Window/crossing selection drag
+  if(selDragging){
+    const sx=Math.min(selStart.x,sp.x),sy=Math.min(selStart.y,sp.y);
+    const sw=Math.abs(sp.x-selStart.x),sh=Math.abs(sp.y-selStart.y);
+    const sb=document.getElementById('selbox');
+    sb.style.display='block';
+    sb.style.left=sx+'px';sb.style.top=sy+'px';
+    sb.style.width=sw+'px';sb.style.height=sh+'px';
+    // AutoCAD style: drag RIGHT = window (blue), drag LEFT = crossing (green)
+    const dragRight=sp.x>=selStart.x;
+    sb.style.borderColor=dragRight?'#4499ff':'#44ff99';
+    sb.style.background=dragRight?'rgba(68,153,255,0.06)':'rgba(68,255,153,0.06)';
+    // Live highlight
+    const rawW=s2w(sp);
+    const bx=makeSelBox(selStartW,rawW);
+    if(!dragRight){
+      // Crossing: highlight anything touched
+      objects.forEach(o=>{/* just render normally, highlight in render */});
+    }
+    render();
+    return;
+  }
+
+  const rawW=s2w(sp);
+  mouseW=snapOn ? computeSnap(rawW) : rawW;
+  render();
+}
+
+function drawMoveDragPreview(cur){
+  if(!moveDragOrigin||!selected.length)return;
+  const dx=cur.x-moveDragStart.x, dy=cur.y-moveDragStart.y;
+  ctx.save();
+  ctx.globalAlpha=0.45;
+  ctx.setLineDash([4,3]);
+  for(let i=0;i<selected.length;i++){
+    const ghost=JSON.parse(JSON.stringify(moveDragOrigin[i]));
+    translateObj(ghost,dx,dy);
+    drawObj(ghost,false);
+  }
+  ctx.restore();
+  ctx.setLineDash([]);
+}
+
+function makeSelBox(w1,w2){
+  return{x1:Math.min(w1.x,w2.x),x2:Math.max(w1.x,w2.x),y1:Math.min(w1.y,w2.y),y2:Math.max(w1.y,w2.y)};
+}
+
+function onUp(e) {
+  if(isPanning){isPanning=false;canvas.style.cursor='crosshair';return;}
+  const sp=canvasPt(e);
+
+  // Finish drag-move
+  if(moveDragging){
+    if(mouseMoved){
+      const rawW=s2w(sp);
+      const cur=snapOn?computeSnap(rawW):rawW;
+      const dx=cur.x-moveDragStart.x, dy=cur.y-moveDragStart.y;
+      if(Math.abs(dx)>0.001||Math.abs(dy)>0.001){
+        saveUndo();
+        selected.forEach(o=>translateObj(o,dx,dy));
+      }
+      render();updateObjList();
+    }
+    moveDragging=false;moveDragStart=null;moveDragOrigin=null;
+    mouseDownPt=null;mouseMoved=false;
+    return;
+  }
+
+  // Finish window/crossing selection drag
+  if(selDragging){
+    document.getElementById('selbox').style.display='none';
+    const dragRight=sp.x>=selStart.x;
+    const rawW=s2w(sp);
+    const bx=makeSelBox(selStartW,rawW);
+    if(!e.shiftKey) selected=[];
+    objects.forEach(o=>{
+      if(dragRight){
+        // Window: object must be FULLY inside
+        if(objInBox(o,bx)) selected.push(o);
+      } else {
+        // Crossing: object only needs to TOUCH the box
+        if(objTouchesBox(o,bx)) selected.push(o);
+      }
+    });
+    selDragging=false;selStart=null;selStartW=null;
+    updatePropsPanel();updateObjList();render();
+    mouseDownPt=null;mouseMoved=false;
+    return;
+  }
+
+  mouseDownPt=null;mouseMoved=false;
+}
+
+// Crossing select — object touches box (not fully inside)
+function objTouchesBox(obj,b){
+  if(objInBox(obj,b))return true;
+  if(obj.type==='line') return lineIntersectsBox(obj.p1,obj.p2,b);
+  if(obj.type==='rect'){
+    const {p1,p2}=obj;
+    const corners=[p1,{x:p2.x,y:p1.y},p2,{x:p1.x,y:p2.y}];
+    for(let i=0;i<4;i++) if(lineIntersectsBox(corners[i],corners[(i+1)%4],b))return true;
+  }
+  if(obj.type==='polyline'){
+    for(let i=0;i<obj.pts.length-1;i++) if(lineIntersectsBox(obj.pts[i],obj.pts[i+1],b))return true;
+  }
+  if(obj.type==='circle'){
+    // Circle centre inside or radius overlaps
+    if(ptInBox(obj.center,b))return true;
+    // Check if box overlaps circle
+    const cx=Math.max(b.x1,Math.min(obj.center.x,b.x2));
+    const cy=Math.max(b.y1,Math.min(obj.center.y,b.y2));
+    return dist({x:cx,y:cy},obj.center)<=obj.radius;
+  }
+  return false;
+}
+
+function lineIntersectsBox(p1,p2,b){
+  // Cohen-Sutherland simplified: clip line to box
+  function code(p){let c=0;if(p.x<b.x1)c|=1;else if(p.x>b.x2)c|=2;if(p.y<b.y1)c|=4;else if(p.y>b.y2)c|=8;return c;}
+  let c1=code(p1),c2=code(p2);
+  if(!(c1&c2))return true; // trivially inside or crosses
+  return false;
+}
+
+function onDbl(e) {
+  if(tool==='polyline'&&dPts.length>1) finishPolyline();
+  if(tool==='select'){
+    // Double-click opens properties
+    const sp=canvasPt(e);
+    const rawW=s2w(sp);
+    const hit=hitTest(rawW);
+    if(hit){selected=[hit];openPropertiesDialog(hit);}
+  }
+}
+
+function onWheel(e) {
+  e.preventDefault();
+  const sp=canvasPt(e);
+  const f=e.deltaY<0?1.15:1/1.15;
+  zoom*=f;
+  pan.x=sp.x-(sp.x-pan.x)*f;
+  pan.y=sp.y-(sp.y-pan.y)*f;
+  render();
+}
+
+// ══════════════════════════════════════════════
+// CONTEXT MENU
+// ══════════════════════════════════════════════
+let _ctxTarget=null;
+
+function onContextMenu(e){
+  e.preventDefault();
+  const sp=canvasPt(e);
+  const rawW=s2w(sp);
+  const hit=hitTest(rawW);
+
+  if(hit&&!selected.includes(hit)) selected=[hit];
+  _ctxTarget=hit;
+  updatePropsPanel();render();
+
+  const menu=document.getElementById('ctx-menu');
+  // Position so it doesn't go off screen
+  const menuW=180, menuH=300;
+  let mx=e.clientX, my=e.clientY;
+  if(mx+menuW>window.innerWidth) mx=window.innerWidth-menuW-4;
+  if(my+menuH>window.innerHeight) my=window.innerHeight-menuH-4;
+  menu.style.left=mx+'px';
+  menu.style.top=my+'px';
+  menu.style.display='block';
+
+  // Update context-sensitive items
+  const hasObj=selected.length>0;
+  document.getElementById('ctx-props').style.display=hasObj?'':'none';
+  document.getElementById('ctx-sep1').style.display=hasObj?'':'none';
+  document.getElementById('ctx-del').style.display=hasObj?'':'none';
+  document.getElementById('ctx-move').style.display=hasObj?'':'none';
+  document.getElementById('ctx-copy').style.display=hasObj?'':'none';
+  document.getElementById('ctx-rotate').style.display=hasObj?'':'none';
+  document.getElementById('ctx-sep2').style.display=hasObj?'':'none';
+}
+function closeContextMenu(){document.getElementById('ctx-menu').style.display='none';}
+document.addEventListener('mousedown',e=>{if(!e.target.closest('#ctx-menu'))closeContextMenu();});
+
+// ══════════════════════════════════════════════
+// PROPERTIES DIALOG
+// ══════════════════════════════════════════════
+function openPropertiesDialog(obj){
+  if(!obj)obj=selected[0];
+  if(!obj)return;
+  closeContextMenu();
+  const dlg=document.getElementById('props-dlg');
+  const body=document.getElementById('props-dlg-body');
+  const layerOpts=layers.map((l,i)=>`<option value="${i}"${obj.layerIdx===i?' selected':''}>${l.name}</option>`).join('');
+
+  let fields=`
+    <div class="dlg-row"><label>Type</label><span style="color:var(--accent)">${obj.type.toUpperCase()}</span></div>
+    <div class="dlg-row"><label>Layer</label><select id="dp-layer">${layerOpts}</select></div>
+    <div class="dlg-row"><label>Color</label><input type="color" id="dp-color" value="${obj.color||layers[obj.layerIdx]?.color||'#00d4ff'}"></div>
+    <div class="dlg-row"><label>Line weight</label><input type="number" id="dp-lw" value="${obj.lw||1}" min="0.1" max="10" step="0.5"></div>
+  `;
+
+  if(obj.type==='line'){
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>X1</label><input type="number" id="dp-x1" value="${obj.p1.x.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Y1</label><input type="number" id="dp-y1" value="${obj.p1.y.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>X2</label><input type="number" id="dp-x2" value="${obj.p2.x.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Y2</label><input type="number" id="dp-y2" value="${obj.p2.y.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Length</label><span style="color:var(--accent3)">${dist(obj.p1,obj.p2).toFixed(4)}</span></div>
+      <div class="dlg-row"><label>Angle</label><span style="color:var(--accent3)">${wAngle(obj.p1,obj.p2).toFixed(2)}°</span></div>
+    `;
+  } else if(obj.type==='circle'){
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>Centre X</label><input type="number" id="dp-cx" value="${obj.center.x.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Centre Y</label><input type="number" id="dp-cy" value="${obj.center.y.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Radius</label><input type="number" id="dp-r" value="${obj.radius.toFixed(4)}" min="0.001" step="any"></div>
+      <div class="dlg-row"><label>Diameter</label><span style="color:var(--accent3)">${(obj.radius*2).toFixed(4)}</span></div>
+      <div class="dlg-row"><label>Circumference</label><span style="color:var(--accent3)">${(obj.radius*2*Math.PI).toFixed(4)}</span></div>
+    `;
+  } else if(obj.type==='arc'){
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>Centre X</label><input type="number" id="dp-cx" value="${obj.center.x.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Centre Y</label><input type="number" id="dp-cy" value="${obj.center.y.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Radius</label><input type="number" id="dp-r" value="${obj.radius.toFixed(4)}" min="0.001" step="any"></div>
+      <div class="dlg-row"><label>Start angle</label><input type="number" id="dp-sa" value="${obj.startAngle.toFixed(2)}" step="any"></div>
+      <div class="dlg-row"><label>End angle</label><input type="number" id="dp-ea" value="${obj.endAngle.toFixed(2)}" step="any"></div>
+    `;
+  } else if(obj.type==='rect'){
+    const w=Math.abs(obj.p2.x-obj.p1.x).toFixed(4),h=Math.abs(obj.p2.y-obj.p1.y).toFixed(4);
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>X1</label><input type="number" id="dp-x1" value="${Math.min(obj.p1.x,obj.p2.x).toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Y1</label><input type="number" id="dp-y1" value="${Math.min(obj.p1.y,obj.p2.y).toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Width</label><input type="number" id="dp-w" value="${w}" min="0.001" step="any"></div>
+      <div class="dlg-row"><label>Height</label><input type="number" id="dp-h" value="${h}" min="0.001" step="any"></div>
+      <div class="dlg-row"><label>Area</label><span style="color:var(--accent3)">${(parseFloat(w)*parseFloat(h)).toFixed(4)}</span></div>
+    `;
+  } else if(obj.type==='text'){
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>Text</label><input type="text" id="dp-txt" value="${obj.text}" style="width:120px;"></div>
+      <div class="dlg-row"><label>Size</label><input type="number" id="dp-size" value="${obj.size||12}" min="1" max="200" step="1"></div>
+      <div class="dlg-row"><label>X</label><input type="number" id="dp-x1" value="${obj.pos.x.toFixed(4)}" step="any"></div>
+      <div class="dlg-row"><label>Y</label><input type="number" id="dp-y1" value="${obj.pos.y.toFixed(4)}" step="any"></div>
+    `;
+  } else if(obj.type==='polyline'){
+    fields+=`
+      <div class="dlg-sep"></div>
+      <div class="dlg-row"><label>Vertices</label><span style="color:var(--accent3)">${obj.pts.length}</span></div>
+      <div class="dlg-row"><label>Closed</label><select id="dp-closed"><option value="false"${!obj.closed?' selected':''}>Open</option><option value="true"${obj.closed?' selected':''}>Closed</option></select></div>
+    `;
+  }
+
+  body.innerHTML=fields;
+  dlg.style.display='flex';
+
+  // Live preview on input change
+  body.addEventListener('input',()=>applyPropsPreview(obj));
+}
+
+function applyPropsPreview(obj){
+  const v=id=>document.getElementById(id);
+  // Always apply common props
+  if(v('dp-layer')) obj.layerIdx=parseInt(v('dp-layer').value);
+  if(v('dp-color')) obj.color=v('dp-color').value;
+  if(v('dp-lw'))    obj.lw=parseFloat(v('dp-lw').value)||1;
+  if(obj.type==='line'){
+    if(v('dp-x1'))obj.p1.x=parseFloat(v('dp-x1').value)||0;
+    if(v('dp-y1'))obj.p1.y=parseFloat(v('dp-y1').value)||0;
+    if(v('dp-x2'))obj.p2.x=parseFloat(v('dp-x2').value)||0;
+    if(v('dp-y2'))obj.p2.y=parseFloat(v('dp-y2').value)||0;
+  } else if(obj.type==='circle'){
+    if(v('dp-cx'))obj.center.x=parseFloat(v('dp-cx').value)||0;
+    if(v('dp-cy'))obj.center.y=parseFloat(v('dp-cy').value)||0;
+    if(v('dp-r')) obj.radius=Math.abs(parseFloat(v('dp-r').value)||1);
+  } else if(obj.type==='arc'){
+    if(v('dp-cx'))obj.center.x=parseFloat(v('dp-cx').value)||0;
+    if(v('dp-cy'))obj.center.y=parseFloat(v('dp-cy').value)||0;
+    if(v('dp-r')) obj.radius=Math.abs(parseFloat(v('dp-r').value)||1);
+    if(v('dp-sa'))obj.startAngle=parseFloat(v('dp-sa').value)||0;
+    if(v('dp-ea'))obj.endAngle=parseFloat(v('dp-ea').value)||0;
+  } else if(obj.type==='rect'){
+    if(v('dp-x1')&&v('dp-y1')&&v('dp-w')&&v('dp-h')){
+      const x=parseFloat(v('dp-x1').value)||0,y=parseFloat(v('dp-y1').value)||0;
+      const w=parseFloat(v('dp-w').value)||1,h=parseFloat(v('dp-h').value)||1;
+      obj.p1={x,y};obj.p2={x:x+w,y:y+h};
+    }
+  } else if(obj.type==='text'){
+    if(v('dp-txt'))obj.text=v('dp-txt').value;
+    if(v('dp-size'))obj.size=parseFloat(v('dp-size').value)||12;
+    if(v('dp-x1'))obj.pos.x=parseFloat(v('dp-x1').value)||0;
+    if(v('dp-y1'))obj.pos.y=parseFloat(v('dp-y1').value)||0;
+  } else if(obj.type==='polyline'){
+    if(v('dp-closed'))obj.closed=v('dp-closed').value==='true';
+  }
+  updatePropsPanel();render();
+}
+
+function closePropsDialog(){
+  const dlg=document.getElementById('props-dlg');
+  dlg.style.display='none';
+  // Save state on close
+  saveUndo();
+  render();updateObjList();
+}
+function cancelPropsDialog(){
+  // Revert by restoring from undo stack peek (don't pop)
+  document.getElementById('props-dlg').style.display='none';
+  render();
+}
+
+// ══════════════════════════════════════════════
+// HIT TEST
+// ══════════════════════════════════════════════
+function hitTest(wp) {
+  const thr=8/zoom;
+  for(let i=objects.length-1;i>=0;i--){
+    const o=objects[i];
+    if(!layers[o.layerIdx].visible)continue;
+    if(objHit(o,wp,thr))return o;
+  }
+  return null;
+}
+function objHit(obj,wp,thr){
+  if(obj.type==='line')   return ptLineDist(wp,obj.p1,obj.p2)<thr;
+  if(obj.type==='dim')    return ptLineDist(wp,obj.p1,obj.p2)<thr;
+  if(obj.type==='rect'){
+    const {p1,p2}=obj;
+    return ptLineDist(wp,p1,{x:p2.x,y:p1.y})<thr||ptLineDist(wp,{x:p2.x,y:p1.y},p2)<thr||
+           ptLineDist(wp,p2,{x:p1.x,y:p2.y})<thr||ptLineDist(wp,{x:p1.x,y:p2.y},p1)<thr;
+  }
+  if(obj.type==='circle') return Math.abs(dist(wp,obj.center)-obj.radius)<thr;
+  if(obj.type==='polyline'){
+    for(let i=0;i<obj.pts.length-1;i++)if(ptLineDist(wp,obj.pts[i],obj.pts[i+1])<thr)return true;
+  }
+  if(obj.type==='text')   return dist(wp,obj.pos)<20/zoom;
+  return false;
+}
+function ptLineDist(p,a,b){
+  const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;
+  if(l2===0)return dist(p,a);
+  const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.y-a.y)*dy)/l2));
+  return dist(p,{x:a.x+t*dx,y:a.y+t*dy});
+}
+function objInBox(obj,b){
+  if(obj.type==='line') return ptInBox(obj.p1,b)&&ptInBox(obj.p2,b);
+  if(obj.type==='rect') return ptInBox(obj.p1,b)&&ptInBox(obj.p2,b);
+  if(obj.type==='circle') return ptInBox(obj.center,b);
+  if(obj.type==='text') return ptInBox(obj.pos,b);
+  if(obj.type==='polyline') return obj.pts.every(p=>ptInBox(p,b));
+  if(obj.type==='dim') return ptInBox(obj.p1,b)&&ptInBox(obj.p2,b);
+  return false;
+}
+function ptInBox(p,b){return p.x>=b.x1&&p.x<=b.x2&&p.y>=b.y1&&p.y<=b.y2;}
+
+// ══════════════════════════════════════════════
+// OBJECT TRANSFORM
+// ══════════════════════════════════════════════
+function translateObj(o,dx,dy){
+  if(o.type==='line')     {o.p1.x+=dx;o.p1.y+=dy;o.p2.x+=dx;o.p2.y+=dy;}
+  else if(o.type==='rect'){o.p1.x+=dx;o.p1.y+=dy;o.p2.x+=dx;o.p2.y+=dy;}
+  else if(o.type==='circle'){o.center.x+=dx;o.center.y+=dy;}
+  else if(o.type==='arc'){o.center.x+=dx;o.center.y+=dy;}
+  else if(o.type==='text'){o.pos.x+=dx;o.pos.y+=dy;}
+  else if(o.type==='polyline'){o.pts.forEach(p=>{p.x+=dx;p.y+=dy;});}
+  else if(o.type==='dim'){o.p1.x+=dx;o.p1.y+=dy;o.p2.x+=dx;o.p2.y+=dy;}
+}
+function rotateObj(o,cx,angle){
+  function rp(p){
+    const dx=p.x-cx.x,dy=p.y-cx.y;
+    p.x=cx.x+dx*Math.cos(angle)-dy*Math.sin(angle);
+    p.y=cx.y+dx*Math.sin(angle)+dy*Math.cos(angle);
+  }
+  if(o.type==='line'){rp(o.p1);rp(o.p2);}
+  else if(o.type==='rect'){rp(o.p1);rp(o.p2);}
+  else if(o.type==='circle'){rp(o.center);}
+  else if(o.type==='polyline'){o.pts.forEach(rp);}
+  else if(o.type==='text'){rp(o.pos);}
+}
+
+// ══════════════════════════════════════════════
+// UNDO / REDO
+// ══════════════════════════════════════════════
+function saveUndo(){
+  undoStack.push(JSON.parse(JSON.stringify(objects)));
+  if(undoStack.length>80)undoStack.shift();
+  redoStack=[];
+  // hide drop zone once drawing begins
+  if(objects.length>0) document.getElementById('drop-zone').style.display='none';
+}
+function undo(){
+  if(!undoStack.length)return;
+  redoStack.push(JSON.parse(JSON.stringify(objects)));
+  objects=undoStack.pop();selected=[];
+  updatePropsPanel();updateObjList();render();
+}
+function redo(){
+  if(!redoStack.length)return;
+  undoStack.push(JSON.parse(JSON.stringify(objects)));
+  objects=redoStack.pop();selected=[];
+  updatePropsPanel();updateObjList();render();
+}
+
+// ══════════════════════════════════════════════
+// TOOL MANAGEMENT
+// ══════════════════════════════════════════════
+function setTool(t) {
+  cancelDrawing();
+  lastTool=tool; tool=t;
+  document.querySelectorAll('.lp-btn').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('t-'+t);
+  if(btn)btn.classList.add('active');
+  document.getElementById('tool-badge').textContent=t.toUpperCase();
+  mbClose();
+}
+
+function cancelDrawing() {
+  drawing=false;dPts=[];moveBase=null;moveCopies=null;
+  document.getElementById('dyn-box').style.display='none';
+  snapPt=null;snapType='';
+}
+
+function finishPolyline() {
+  if(dPts.length<2)return;
+  const lw=parseFloat(document.getElementById('lw-sel').value);
+  const col=document.getElementById('stroke-col').value;
+  saveUndo();
+  objects.push({type:'polyline',pts:[...dPts],closed:false,lw,color:col,layerIdx:activeLayer});
+  cancelDrawing();render();updateObjList();
+}
+
+// ══════════════════════════════════════════════
+// VIEW CONTROLS
+// ══════════════════════════════════════════════
+function zoomAt(f,cx,cy){
+  cx=cx??W/2;cy=cy??H/2;
+  zoom*=f;
+  pan.x=cx-(cx-pan.x)*f;
+  pan.y=cy-(cy-pan.y)*f;
+  render();
+}
+
+function fitAll(){
+  if(!objects.length){zoom=1;pan={x:W/2,y:H/2};render();return;}
+  let mx=Infinity,Mx=-Infinity,my=Infinity,My=-Infinity;
+  for(const o of objects){const b=getBB(o);mx=Math.min(mx,b.x1);Mx=Math.max(Mx,b.x2);my=Math.min(my,b.y1);My=Math.max(My,b.y2);}
+  const mg=50,pw=W-mg*2,ph=H-mg*2;
+  const ww=Mx-mx||100,wh=My-my||100;
+  zoom=Math.min(pw/ww,ph/wh)*0.9;
+  pan.x=W/2-((mx+Mx)/2)*zoom;
+  pan.y=H/2+((my+My)/2)*zoom;
+  render();
+}
+
+function getBB(o){
+  if(o.type==='line')     return{x1:Math.min(o.p1.x,o.p2.x),x2:Math.max(o.p1.x,o.p2.x),y1:Math.min(o.p1.y,o.p2.y),y2:Math.max(o.p1.y,o.p2.y)};
+  if(o.type==='rect')     return{x1:Math.min(o.p1.x,o.p2.x),x2:Math.max(o.p1.x,o.p2.x),y1:Math.min(o.p1.y,o.p2.y),y2:Math.max(o.p1.y,o.p2.y)};
+  if(o.type==='circle')   return{x1:o.center.x-o.radius,x2:o.center.x+o.radius,y1:o.center.y-o.radius,y2:o.center.y+o.radius};
+  if(o.type==='polyline'){const xs=o.pts.map(p=>p.x),ys=o.pts.map(p=>p.y);return{x1:Math.min(...xs),x2:Math.max(...xs),y1:Math.min(...ys),y2:Math.max(...ys)};}
+  if(o.type==='text')     return{x1:o.pos.x,x2:o.pos.x+60,y1:o.pos.y-14,y2:o.pos.y};
+  if(o.type==='dim')      return{x1:Math.min(o.p1.x,o.p2.x),x2:Math.max(o.p1.x,o.p2.x),y1:Math.min(o.p1.y,o.p2.y)-20,y2:Math.max(o.p1.y,o.p2.y)};
+  return{x1:0,x2:0,y1:0,y2:0};
+}
+
+function toggleGrid(){
+  gridOn=!gridOn;
+  document.getElementById('btn-grid').classList.toggle('active',gridOn);
+  document.getElementById('tog-grid').classList.toggle('on',gridOn);
+  render();
+}
+function toggleSnap(){
+  snapOn=!snapOn;
+  document.getElementById('btn-snap').classList.toggle('active',snapOn);
+  document.getElementById('tog-snap').classList.toggle('on',snapOn);
+}
+function toggleOrtho(){
+  orthoOn=!orthoOn;
+  document.getElementById('btn-ortho').classList.toggle('active',orthoOn);
+  document.getElementById('tog-ortho').classList.toggle('on',orthoOn);
+  render();
+}
+
+// ══════════════════════════════════════════════
+// SELECTION HELPERS
+// ══════════════════════════════════════════════
+function selectAll(){selected=[...objects];updatePropsPanel();render();}
+function copySelected(){
+  if(!selected.length)return;
+  saveUndo();
+  const copies=selected.map(o=>{const c=JSON.parse(JSON.stringify(o));translateObj(c,20,20);return c;});
+  objects.push(...copies);
+  selected=copies;
+  updatePropsPanel();updateObjList();render();
+}
+function deleteSelected(){
+  if(!selected.length)return;
+  saveUndo();
+  objects=objects.filter(o=>!selected.includes(o));
+  selected=[];updatePropsPanel();updateObjList();render();
+}
+
+// ══════════════════════════════════════════════
+// FILE ACTIONS
+// ══════════════════════════════════════════════
+function newFile(){
+  if(objects.length&&!confirm('Clear all objects and start new drawing?'))return;
+  saveUndo();objects=[];selected=[];cancelDrawing();
+  layers=[{name:'0',color:'#00d4ff',visible:true}];activeLayer=0;
+  renderLayers();render();updateObjList();
+  document.getElementById('drop-zone').style.display='flex';
+}
+function savePNG(){
+  const a=document.createElement('a');a.download='opendraft.png';a.href=canvas.toDataURL();a.click();
+}
+function changeGridSize(){
+  const v=parseFloat(prompt('Grid spacing:',gridSize));
+  if(!isNaN(v)&&v>0){gridSize=v;render();}
+}
+function changeLineweight(){
+  const v=parseFloat(prompt('Line weight (0.5/1/2/3):',document.getElementById('lw-sel').value));
+  if(!isNaN(v)){document.getElementById('lw-sel').value=v;}
+}
+
+// ══════════════════════════════════════════════
+// LAYERS
+// ══════════════════════════════════════════════
+function renderLayers(){
+  const lb=document.getElementById('layer-list');
+  lb.innerHTML='';
+  layers.forEach((l,i)=>{
+    const d=document.createElement('div');
+    d.className='lr'+(i===activeLayer?' active':'');
+    d.innerHTML=`<div class="ld" style="background:${l.color}"></div><span class="ln">${l.name}</span><span class="lv" onclick="event.stopPropagation();toggleLayerVis(${i})">${l.visible?'👁':'🚫'}</span>`;
+    d.onclick=()=>{activeLayer=i;renderLayers();};
+    lb.appendChild(d);
+  });
+}
+function toggleLayerVis(i){layers[i].visible=!layers[i].visible;renderLayers();render();}
+function addLayer(){
+  const name=prompt('Layer name:','Layer '+layers.length);
+  if(!name)return;
+  const cols=['#ff6b35','#7fff6b','#ff4488','#ffd700','#a0f0f0'];
+  layers.push({name,color:cols[layers.length%cols.length],visible:true});
+  renderLayers();
+}
+
+// ══════════════════════════════════════════════
+// PROPERTIES PANEL
+// ══════════════════════════════════════════════
+function updatePropsPanel(){
+  if(selected.length===1){
+    const o=selected[0];
+    document.getElementById('pp-type').textContent=o.type.toUpperCase();
+    document.getElementById('pp-lay').textContent=layers[o.layerIdx]?.name||o.layerIdx;
+    if(o.type==='line'){
+      document.getElementById('pp-len').textContent=dist(o.p1,o.p2).toFixed(3);
+      document.getElementById('pp-ang').textContent=wAngle(o.p1,o.p2).toFixed(1)+'°';
+      document.getElementById('pp-x').textContent=o.p1.x.toFixed(2);
+      document.getElementById('pp-y').textContent=o.p1.y.toFixed(2);
+    } else if(o.type==='circle'){
+      document.getElementById('pp-len').textContent='r='+o.radius.toFixed(3);
+      document.getElementById('pp-ang').textContent='—';
+      document.getElementById('pp-x').textContent=o.center.x.toFixed(2);
+      document.getElementById('pp-y').textContent=o.center.y.toFixed(2);
+    } else {['pp-len','pp-ang','pp-x','pp-y'].forEach(id=>document.getElementById(id).textContent='—');}
+  } else {
+    const v=selected.length>1?`(${selected.length})`:'—';
+    ['pp-type','pp-len','pp-ang','pp-x','pp-y'].forEach(id=>document.getElementById(id).textContent=v);
+  }
+}
+function updateObjList(){
+  const ob=document.getElementById('obj-list');
+  ob.innerHTML=objects.map((o,i)=>`<div style="padding:1px 0;color:${selected.includes(o)?'#00d4ff':'#5a6278'};cursor:pointer;" onclick="selectSingle(${i})">${i+1}. ${o.type.toUpperCase()} [${layers[o.layerIdx]?.name||o.layerIdx}]</div>`).join('');
+}
+function selectSingle(i){selected=[objects[i]];updatePropsPanel();updateObjList();render();}
+
+// ══════════════════════════════════════════════
+// CAD COMMAND SYSTEM
+// ══════════════════════════════════════════════
+let cmdBuf='', lastCmd='', cmdTimer=null;
+
+const CMDS = {
+  // Draw
+  'l':       ()=>setTool('line'),
+  'line':    ()=>setTool('line'),
+  'pl':      ()=>setTool('polyline'),
+  'pline':   ()=>setTool('polyline'),
+  'polyline':()=>setTool('polyline'),
+  'rec':     ()=>setTool('rect'),
+  'rectang': ()=>setTool('rect'),
+  'rectangle':()=>setTool('rect'),
+  'c':       ()=>setTool('circle'),
+  'ci':      ()=>setTool('circle'),
+  'circle':  ()=>setTool('circle'),
+  'arc':     ()=>setTool('arc'),
+  'a':       ()=>setTool('arc'),
+  // Annotate
+  't':       ()=>setTool('text'),
+  'dt':      ()=>setTool('text'),
+  'text':    ()=>setTool('text'),
+  'mtext':   ()=>setTool('text'),
+  'mt':      ()=>setTool('text'),
+  'dli':     ()=>setTool('dim'),
+  'dal':     ()=>setTool('dim'),
+  'dim':     ()=>setTool('dim'),
+  'dimlinear':()=>setTool('dim'),
+  'di':      ()=>setTool('measure'),
+  'dist':    ()=>setTool('measure'),
+  'measure': ()=>setTool('measure'),
+  // Modify
+  'm':       ()=>setTool('move'),
+  'move':    ()=>setTool('move'),
+  'co':      ()=>setTool('copy'),
+  'cp':      ()=>setTool('copy'),
+  'copy':    ()=>setTool('copy'),
+  'ro':      ()=>setTool('rotate'),
+  'rotate':  ()=>setTool('rotate'),
+  'e':       ()=>deleteSelected(),
+  'er':      ()=>deleteSelected(),
+  'erase':   ()=>deleteSelected(),
+  // Select
+  'sa':      ()=>selectAll(),
+  // View
+  'z':       ()=>null,
+  'za':      ()=>fitAll(),
+  'ze':      ()=>fitAll(),
+  'zoom':    ()=>fitAll(),
+  'zoomall': ()=>fitAll(),
+  'f':       ()=>fitAll(),
+  'fit':     ()=>fitAll(),
+  // Toggles
+  'grid':    ()=>toggleGrid(),
+  'snap':    ()=>toggleSnap(),
+  'os':      ()=>toggleSnap(),
+  'osnap':   ()=>toggleSnap(),
+  'ortho':   ()=>toggleOrtho(),
+  // File
+  'new':     ()=>newFile(),
+  'open':    ()=>triggerOpen(),
+  'insert':  ()=>triggerOpenAppend(),
+  'plot':    ()=>exportPDF(),
+  'pdf':     ()=>exportPDF(),
+  'dxf':     ()=>exportDXF(),
+  'save':    ()=>savePNG(),
+  'qsave':   ()=>savePNG(),
+  // Edit
+  'u':       ()=>undo(),
+  'undo':    ()=>undo(),
+  'redo':    ()=>redo(),
+};
+
+function execCmd(raw){
+  const cmd=raw.trim().toLowerCase();
+  if(!cmd){if(lastCmd&&CMDS[lastCmd])CMDS[lastCmd]();return;}
+  if(CMDS[cmd]){CMDS[cmd]();lastCmd=cmd;flashCmd(cmd.toUpperCase(),true);}
+  else{flashCmd('Unknown: '+cmd.toUpperCase(),false);}
+}
+function flashCmd(msg,ok){
+  const inp=document.getElementById('cmd-input');
+  inp.value=msg;
+  inp.style.color=ok?'var(--accent3)':'var(--accent2)';
+  clearTimeout(cmdTimer);
+  cmdTimer=setTimeout(()=>{inp.value=cmdBuf;inp.style.color='var(--accent)';},900);
+}
+function setCmdBuf(v){cmdBuf=v;document.getElementById('cmd-input').value=v;}
+
+// Global key handler — type anywhere
+document.addEventListener('keydown',e=>{
+  // Never steal from the cmd input if user clicked in
+  const inCmd=document.activeElement===document.getElementById('cmd-input');
+
+  // Ctrl shortcuts always work
+  if(e.ctrlKey||e.metaKey){
+    if(e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
+    if(e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
+    if(e.key.toLowerCase()==='a'){e.preventDefault();selectAll();return;}
+    if(e.key.toLowerCase()==='n'){e.preventDefault();newFile();return;}
+    if(e.key.toLowerCase()==='o'){e.preventDefault();triggerOpen();return;}
+    if(e.key.toLowerCase()==='s'){e.preventDefault();savePNG();return;}
+    return;
+  }
+
+  // Function keys
+  if(e.key==='F7'){e.preventDefault();toggleGrid();return;}
+  if(e.key==='F8'){e.preventDefault();toggleOrtho();return;}
+  if(e.key==='F9'){e.preventDefault();toggleSnap();return;}
+
+  if(inCmd)return; // let the input box handle everything else
+
+  const k=e.key;
+
+  if(k==='Escape'){
+    e.preventDefault();
+    cmdBuf='';document.getElementById('cmd-input').value='';
+    cancelDrawing();selected=[];setTool('select');render();return;
+  }
+  if(k==='Delete'||k==='Backspace'){
+    if(k==='Backspace'){cmdBuf=cmdBuf.slice(0,-1);document.getElementById('cmd-input').value=cmdBuf;}
+    else deleteSelected();
+    return;
+  }
+  if(k==='Enter'||k===' '){
+    e.preventDefault();
+    // Finish polyline on Enter/Space
+    if(tool==='polyline'&&dPts.length>1){finishPolyline();}
+    else{execCmd(cmdBuf);cmdBuf='';document.getElementById('cmd-input').value='';}
+    return;
+  }
+  if(k==='+'||k==='='){zoomAt(1.25);return;}
+  if(k==='-'){zoomAt(0.8);return;}
+
+  // Printable → accumulate
+  if(k.length===1){
+    cmdBuf+=k;
+    document.getElementById('cmd-input').value=cmdBuf;
+    // Auto-execute if typed is a known command AND no longer prefix matches anything
+    const typed=cmdBuf.toLowerCase();
+    const hasLonger=Object.keys(CMDS).some(kk=>kk!==typed&&kk.startsWith(typed));
+    if(!hasLonger&&CMDS[typed]){
+      setTimeout(()=>{
+        if(cmdBuf.toLowerCase()===typed){execCmd(cmdBuf);cmdBuf='';document.getElementById('cmd-input').value='';}
+      },260);
+    }
+  }
+});
+
+// cmd-input box (for mouse users who click it)
+document.getElementById('cmd-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter'){e.preventDefault();const v=e.target.value;cmdBuf='';execCmd(v);e.target.value='';}
+  if(e.key==='Escape'){e.preventDefault();cmdBuf='';e.target.value='';e.target.blur();}
+});
+
+// ══════════════════════════════════════════════
+// PDF EXPORT
+// ══════════════════════════════════════════════
+function exportPDF(){
+  if(!objects.length){alert('Nothing to export.');return;}
+  let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;
+  for(const o of objects){const b=getBB(o);minX=Math.min(minX,b.x1);maxX=Math.max(maxX,b.x2);minY=Math.min(minY,b.y1);maxY=Math.max(maxY,b.y2);}
+  const mg=40;minX-=mg;minY-=mg;maxX+=mg;maxY+=mg;
+  const PW=841,PH=595;
+  const s=Math.min(PW/(maxX-minX),PH/(maxY-minY))*0.9;
+  const ox=(PW-(maxX-minX)*s)/2-minX*s;
+  const oy=(PH-(maxY-minY)*s)/2;
+  const px=x=>(x*s+ox).toFixed(3);
+  const py=y=>(PH-(y*s+oy)).toFixed(3);
+  function rgb(hex){hex=(hex||'#00d4ff').replace('#','');if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');const n=parseInt(hex,16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
+  function sc(hex){const[r,g,b]=rgb(hex);return`${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG\n${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg\n`;}
+  let st='1 1 1 rg\n0 0 '+PW+' '+PH+' re f\n0.88 0.88 0.88 RG 0.5 w\n0 0 '+PW+' '+PH+' re S\n';
+  for(const o of objects){
+    if(!layers[o.layerIdx]?.visible)continue;
+    const lc=layers[o.layerIdx]?.color||'#00d4ff';
+    const col=o.color||lc;
+    st+=sc(col);st+=((o.lw||1)*0.5).toFixed(2)+' w\n';
+    if(o.type==='line'){st+=`${px(o.p1.x)} ${py(o.p1.y)} m ${px(o.p2.x)} ${py(o.p2.y)} l S\n`;}
+    else if(o.type==='rect'){const x1=Math.min(o.p1.x,o.p2.x),x2=Math.max(o.p1.x,o.p2.x),y1=Math.min(o.p1.y,o.p2.y),y2=Math.max(o.p1.y,o.p2.y);st+=`${px(x1)} ${py(y1)} m ${px(x2)} ${py(y1)} l ${px(x2)} ${py(y2)} l ${px(x1)} ${py(y2)} l h S\n`;}
+    else if(o.type==='circle'){const k=0.5523,cx=o.center.x,cy=o.center.y,r=o.radius;st+=`${px(cx+r)} ${py(cy)} m\n`;const segs=[[cx+r,cy,cx+r,cy+r*k,cx+r*k,cy+r,cx,cy+r],[cx,cy+r,cx-r*k,cy+r,cx-r,cy+r*k,cx-r,cy],[cx-r,cy,cx-r,cy-r*k,cx-r*k,cy-r,cx,cy-r],[cx,cy-r,cx+r*k,cy-r,cx+r,cy-r*k,cx+r,cy]];segs.forEach(b=>st+=`${px(b[2])} ${py(b[3])} ${px(b[4])} ${py(b[5])} ${px(b[6])} ${py(b[7])} c\n`);st+='S\n';}
+    else if(o.type==='polyline'){if(o.pts.length<2)continue;st+=`${px(o.pts[0].x)} ${py(o.pts[0].y)} m\n`;for(let i=1;i<o.pts.length;i++)st+=`${px(o.pts[i].x)} ${py(o.pts[i].y)} l\n`;st+='S\n';}
+    else if(o.type==='text'){const[r,g,b]=rgb(col);const fs=Math.max(6,(o.size||12)*s*0.8);st+=`BT /F1 ${fs.toFixed(1)} Tf ${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg ${px(o.pos.x)} ${py(o.pos.y)} Td (${o.text.replace(/[()\\]/g,'\\$&')}) Tj ET\n`;}
+    else if(o.type==='dim'){const off=15,dx=o.p2.x-o.p1.x,dy=o.p2.y-o.p1.y,l=Math.sqrt(dx*dx+dy*dy);if(l<.001)continue;const nx=-dy/l*off/s,ny=dx/l*off/s;st+='0.3 0.3 0.3 RG 0.4 w\n';st+=`${px(o.p1.x+nx)} ${py(o.p1.y+ny)} m ${px(o.p2.x+nx)} ${py(o.p2.y+ny)} l S\n${px(o.p1.x)} ${py(o.p1.y)} m ${px(o.p1.x+nx)} ${py(o.p1.y+ny)} l S\n${px(o.p2.x)} ${py(o.p2.y)} m ${px(o.p2.x+nx)} ${py(o.p2.y+ny)} l S\n`;const d=Math.sqrt((o.p2.x-o.p1.x)**2+(o.p2.y-o.p1.y)**2).toFixed(2);const mx=(o.p1.x+o.p2.x)/2+nx,my=(o.p1.y+o.p2.y)/2+ny;st+=`BT /F1 7 Tf 0.2 0.2 0.2 rg ${px(mx)} ${py(my+2/s)} Td (${d}) Tj ET\n`;}
+  }
+  st+=`0.2 0.2 0.2 rg BT /F1 8 Tf 20 14 Td (OpenDraft  |  ${new Date().toLocaleDateString('en-GB')}  |  ${objects.length} objects) Tj ET\n`;
+  const len=new TextEncoder().encode(st).length;
+  let pdf='%PDF-1.4\n';
+  const o1=pdf.length;pdf+=`1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n`;
+  const o2=pdf.length;pdf+=`2 0 obj\n<</Type/Pages/Kids[3 0 R]/Count 1>>\nendobj\n`;
+  const o3=pdf.length;pdf+=`3 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${PW} ${PH}]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>\nendobj\n`;
+  const o4=pdf.length;pdf+=`4 0 obj\n<</Length ${len}>>\nstream\n${st}\nendstream\nendobj\n`;
+  const o5=pdf.length;pdf+=`5 0 obj\n<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>\nendobj\n`;
+  const xr=pdf.length;
+  pdf+=`xref\n0 6\n0000000000 65535 f \n${String(o1).padStart(10,'0')} 00000 n \n${String(o2).padStart(10,'0')} 00000 n \n${String(o3).padStart(10,'0')} 00000 n \n${String(o4).padStart(10,'0')} 00000 n \n${String(o5).padStart(10,'0')} 00000 n \ntrailer\n<</Size 6/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`;
+  const blob=new Blob([pdf],{type:'application/pdf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='opendraft.pdf';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ══════════════════════════════════════════════
+// DXF EXPORT
+// ══════════════════════════════════════════════
+function exportDXF(){
+  if(!objects.length){alert('Nothing to export.');return;}
+  function aci(hex){if(!hex)return 7;hex=hex.toLowerCase().replace('#','');const m={'00d4ff':4,'ff6b35':30,'7fff6b':3,'ffffff':7,'ff0000':1,'00ff00':3,'0000ff':5,'ffff00':2,'ff00ff':6,'00ffff':4};return m[hex]||7;}
+  let d='  0\nSECTION\n  2\nHEADER\n  9\n$ACADVER\n  1\nAC1009\n  9\n$INSUNITS\n 70\n4\n  0\nENDSEC\n';
+  d+='  0\nSECTION\n  2\nTABLES\n  0\nTABLE\n  2\nLAYER\n 70\n'+layers.length+'\n';
+  layers.forEach(l=>{d+='  0\nLAYER\n  2\n'+l.name+'\n 70\n0\n 62\n'+aci(l.color)+'\n  6\nCONTINUOUS\n';});
+  d+='  0\nENDTAB\n  0\nENDSEC\n  0\nSECTION\n  2\nENTITIES\n';
+  for(const o of objects){
+    if(!layers[o.layerIdx]?.visible)continue;
+    const ln=layers[o.layerIdx]?.name||'0';
+    const ci=aci(o.color||layers[o.layerIdx]?.color);
+    const lw=o.lw||1;
+    if(o.type==='line'){d+=`  0\nLINE\n  8\n${ln}\n 62\n${ci}\n 10\n${o.p1.x.toFixed(6)}\n 20\n${o.p1.y.toFixed(6)}\n 30\n0.0\n 11\n${o.p2.x.toFixed(6)}\n 21\n${o.p2.y.toFixed(6)}\n 31\n0.0\n`;}
+    else if(o.type==='rect'){const corners=[[o.p1.x,o.p1.y],[o.p2.x,o.p1.y],[o.p2.x,o.p2.y],[o.p1.x,o.p2.y]];d+=`  0\nLWPOLYLINE\n  8\n${ln}\n 62\n${ci}\n 90\n4\n 70\n1\n 43\n${lw}\n`;corners.forEach(([x,y])=>{d+=` 10\n${x.toFixed(6)}\n 20\n${y.toFixed(6)}\n`;});}
+    else if(o.type==='circle'){d+=`  0\nCIRCLE\n  8\n${ln}\n 62\n${ci}\n 10\n${o.center.x.toFixed(6)}\n 20\n${o.center.y.toFixed(6)}\n 30\n0.0\n 40\n${o.radius.toFixed(6)}\n`;}
+    else if(o.type==='arc'){d+=`  0\nARC\n  8\n${ln}\n 62\n${ci}\n 10\n${o.center.x.toFixed(6)}\n 20\n${o.center.y.toFixed(6)}\n 30\n0.0\n 40\n${o.radius.toFixed(6)}\n 50\n${o.startAngle.toFixed(6)}\n 51\n${o.endAngle.toFixed(6)}\n`;}
+    else if(o.type==='polyline'){if(o.pts.length<2)continue;d+=`  0\nLWPOLYLINE\n  8\n${ln}\n 62\n${ci}\n 90\n${o.pts.length}\n 70\n${o.closed?1:0}\n 43\n${lw}\n`;o.pts.forEach(p=>{d+=` 10\n${p.x.toFixed(6)}\n 20\n${p.y.toFixed(6)}\n`;});}
+    else if(o.type==='text'){d+=`  0\nTEXT\n  8\n${ln}\n 62\n${ci}\n 10\n${o.pos.x.toFixed(6)}\n 20\n${o.pos.y.toFixed(6)}\n 30\n0.0\n 40\n${o.size||12}\n  1\n${o.text}\n`;}
+    else if(o.type==='dim'){const mx=(o.p1.x+o.p2.x)/2,my=(o.p1.y+o.p2.y)/2+15;d+=`  0\nDIMENSION\n  8\n${ln}\n 62\n${ci}\n 10\n${mx.toFixed(6)}\n 20\n${my.toFixed(6)}\n 30\n0.0\n 11\n${mx.toFixed(6)}\n 21\n${my.toFixed(6)}\n 31\n0.0\n 13\n${o.p1.x.toFixed(6)}\n 23\n${o.p1.y.toFixed(6)}\n 33\n0.0\n 14\n${o.p2.x.toFixed(6)}\n 24\n${o.p2.y.toFixed(6)}\n 34\n0.0\n 70\n32\n`;}
+  }
+  d+='  0\nENDSEC\n  0\nEOF\n';
+  const blob=new Blob([d],{type:'application/dxf'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='opendraft.dxf';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+
+// ══════════════════════════════════════════════
+// DXF IMPORT ENGINE
+// Supports: LINE, LWPOLYLINE, POLYLINE/VERTEX,
+//           CIRCLE, ARC, ELLIPSE, SPLINE,
+//           TEXT, MTEXT, DIMENSION, INSERT (as point),
+//           HATCH (ignored), all in ASCII DXF R12–R2018
+// ══════════════════════════════════════════════
+
+// Hidden file input
+const _fileInput = document.createElement('input');
+_fileInput.type='file'; _fileInput.accept='.dxf,.DXF';
+_fileInput.style.display='none';
+document.body.appendChild(_fileInput);
+
+const _fileInputAppend = document.createElement('input');
+_fileInputAppend.type='file'; _fileInputAppend.accept='.dxf,.DXF';
+_fileInputAppend.style.display='none';
+document.body.appendChild(_fileInputAppend);
+
+let _appendMode=false;
+function triggerOpen(){_appendMode=false;_fileInput.value='';_fileInput.click();mbClose();}
+function triggerOpenAppend(){_appendMode=true;_fileInput.value='';_fileInput.click();mbClose();}
+
+_fileInput.addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  readDXF(f, _appendMode);
+});
+
+// Drag & drop on canvas wrap
+const cwrap=document.getElementById('cwrap');
+const dropActive=document.getElementById('drop-active');
+cwrap.addEventListener('dragover',e=>{e.preventDefault();dropActive.style.display='flex';});
+cwrap.addEventListener('dragleave',e=>{dropActive.style.display='none';});
+cwrap.addEventListener('drop',e=>{
+  e.preventDefault();dropActive.style.display='none';
+  const f=e.dataTransfer.files[0];
+  if(f&&(f.name.toLowerCase().endsWith('.dxf')))readDXF(f,false);
+  else alert('Please drop a .dxf file.');
+});
+
+function readDXF(file, append){
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try {
+      const result=parseDXF(ev.target.result);
+      if(!append){saveUndo();objects=[];layers=[{name:'0',color:'#00d4ff',visible:true}];}
+      else saveUndo();
+      importDXFObjects(result, append);
+      renderLayers();updateObjList();updatePropsPanel();
+      fitAll();
+      showImportStatus(result.stats);
+    } catch(err){
+      alert('DXF parse error: '+err.message);
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ── ACI (AutoCAD Color Index) → hex ──
+const ACI={1:'#ff0000',2:'#ffff00',3:'#00ff00',4:'#00ffff',5:'#0000ff',6:'#ff00ff',
+           7:'#ffffff',8:'#808080',9:'#c0c0c0',10:'#ff0000',30:'#ff8000',
+           40:'#ffbf00',50:'#ffff00',70:'#80ff00',90:'#00ff80',
+           100:'#00ffff',110:'#0080ff',130:'#0000ff',140:'#8000ff',
+           150:'#ff00ff',170:'#ff0080',256:'#00d4ff'};
+function aciToHex(n){return ACI[n]||ACI[7];}
+
+// ── DXF group-code tokeniser ──
+function tokenise(text){
+  const lines=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const pairs=[];
+  for(let i=0;i+1<lines.length;i+=2){
+    const code=parseInt(lines[i].trim(),10);
+    const val=lines[i+1]; // keep raw – trim per field
+    if(!isNaN(code)) pairs.push([code, val]);
+  }
+  return pairs;
+}
+
+// ── Main DXF parser ──
+function parseDXF(text){
+  const pairs=tokenise(text);
+  const layerDefs={};  // name → {color}
+  const entities=[];
+  const blocks={};     // block name → [entities]
+  const stats={total:0,skipped:0,layers:0};
+
+  let i=0;
+  function peek(){return i<pairs.length?pairs[i]:null;}
+  function next(){return pairs[i++];}
+  function skipUntil(code,val){while(i<pairs.length){const p=peek();if(p[0]===code&&(val===undefined||p[1].trim()===val))return;i++;}}
+
+  // ── scan TABLES section for layer colours ──
+  function readTables(){
+    while(i<pairs.length){
+      const p=peek();
+      if(p[0]===0&&p[1].trim()==='ENDSEC')return;
+      if(p[0]===0&&p[1].trim()==='LAYER'){
+        i++;
+        let lname='',lcolor=7;
+        while(i<pairs.length){
+          const q=peek();
+          if(q[0]===0)break;
+          if(q[0]===2)lname=q[1].trim();
+          if(q[0]===62)lcolor=Math.abs(parseInt(q[1].trim(),10));
+          i++;
+        }
+        if(lname){layerDefs[lname]={color:aciToHex(lcolor),aci:lcolor};}
+      } else i++;
+    }
+  }
+
+  // ── read one entity, return object or null ──
+  function readEntity(type){
+    const ent={type:type.toLowerCase(),raw:{}};
+    // common defaults
+    let layer='0',colorCode=256,lw=1;
+    let x0=0,y0=0,x1=0,y1=0,x2=0,y2=0;
+    let r=0,sa=0,ea=360;
+    let txt='',h=12;
+    // polyline / lwpolyline vertex accumulation
+    let verts=[],closed=false,bulges=[];
+    // spline control points
+    let ctrlPts=[];
+    // ellipse axes
+    let majX=1,majY=0,ratio=1;
+    // dim
+    let d10x=0,d10y=0,d13x=0,d13y=0,d14x=0,d14y=0;
+
+    while(i<pairs.length){
+      const p=peek();
+      if(p[0]===0)break; // next entity
+      const [code,rawVal]=next();
+      const val=rawVal.trim();
+      ent.raw[code]=val;
+      if(code===8)  layer=val;
+      if(code===62) colorCode=Math.abs(parseInt(val,10));
+      if(code===370||code===43) lw=Math.max(0.1,parseFloat(val)||1);
+      // coordinates by group code
+      if(code===10) x0=parseFloat(val);
+      if(code===20) y0=parseFloat(val);
+      if(code===11) x1=parseFloat(val);
+      if(code===21) y1=parseFloat(val);
+      if(code===12) x2=parseFloat(val);
+      if(code===22) y2=parseFloat(val);
+      if(code===40) r=parseFloat(val);
+      if(code===50) sa=parseFloat(val);
+      if(code===51) ea=parseFloat(val);
+      if(code===1)  txt=val;
+      if(code===3)  txt+=val; // MTEXT continuation
+      if(code===41&&type==='TEXT')h=parseFloat(val);
+      if(code===40&&type==='TEXT')h=parseFloat(val);
+      // LWPOLYLINE vertices (group 10/20 repeat)
+      if((type==='LWPOLYLINE')&&code===10) verts.push({x:parseFloat(val),y:0});
+      if((type==='LWPOLYLINE')&&code===20&&verts.length>0) verts[verts.length-1].y=parseFloat(val);
+      if((type==='LWPOLYLINE')&&code===42) bulges.push(parseFloat(val));
+      if((type==='LWPOLYLINE')&&code===70) closed=!!(parseInt(val)&1);
+      // POLYLINE flags
+      if(type==='POLYLINE'&&code===70) closed=!!(parseInt(val)&1);
+      // ELLIPSE
+      if(type==='ELLIPSE'&&code===11) majX=parseFloat(val);
+      if(type==='ELLIPSE'&&code===21) majY=parseFloat(val);
+      if(type==='ELLIPSE'&&code===40) ratio=parseFloat(val);
+      // SPLINE / DIMENSION extra pts
+      if(type==='SPLINE'&&code===10) ctrlPts.push({x:parseFloat(val),y:0});
+      if(type==='SPLINE'&&code===20&&ctrlPts.length>0) ctrlPts[ctrlPts.length-1].y=parseFloat(val);
+      if(type==='DIMENSION'&&code===10){d10x=parseFloat(val);}
+      if(type==='DIMENSION'&&code===20){d10y=parseFloat(val);}
+      if(type==='DIMENSION'&&code===13){d13x=parseFloat(val);}
+      if(type==='DIMENSION'&&code===23){d13y=parseFloat(val);}
+      if(type==='DIMENSION'&&code===14){d14x=parseFloat(val);}
+      if(type==='DIMENSION'&&code===24){d14y=parseFloat(val);}
+    }
+
+    const col=(colorCode!==256)?aciToHex(colorCode):null;
+    ent.layer=layer; ent.color=col; ent.lw=lw;
+
+    if(type==='LINE'){
+      ent.p1={x:x0,y:y0}; ent.p2={x:x1,y:y1}; return ent;
+    }
+    if(type==='CIRCLE'){
+      ent.center={x:x0,y:y0}; ent.radius=r; return ent;
+    }
+    if(type==='ARC'){
+      ent.center={x:x0,y:y0}; ent.radius=r;
+      ent.startAngle=sa; ent.endAngle=ea; return ent;
+    }
+    if(type==='LWPOLYLINE'){
+      if(verts.length>=2){ent.pts=verts;ent.closed=closed;ent.type='polyline';return ent;}
+      return null;
+    }
+    if(type==='TEXT'||type==='MTEXT'){
+      // Clean MTEXT formatting codes
+      txt=txt.replace(/\\[pPnN]/g,'\n').replace(/\{\\[^;]*;/g,'').replace(/\}/g,'').replace(/\\U\+([0-9A-Fa-f]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16)));
+      ent.pos={x:x0,y:y0}; ent.text=txt||'?'; ent.size=h||12;
+      ent.type='text'; return ent;
+    }
+    if(type==='ELLIPSE'){
+      // Approximate ellipse as polyline (36 segments)
+      const majLen=Math.sqrt(majX*majX+majY*majY);
+      const minLen=majLen*ratio;
+      const ang=Math.atan2(majY,majX);
+      const pts=[];
+      for(let k=0;k<=36;k++){
+        const t=(k/36)*Math.PI*2;
+        pts.push({
+          x:x0+majLen*Math.cos(t)*Math.cos(ang)-minLen*Math.sin(t)*Math.sin(ang),
+          y:y0+majLen*Math.cos(t)*Math.sin(ang)+minLen*Math.sin(t)*Math.cos(ang)
+        });
+      }
+      ent.pts=pts; ent.closed=true; ent.type='polyline'; return ent;
+    }
+    if(type==='SPLINE'){
+      if(ctrlPts.length>=2){ent.pts=ctrlPts;ent.closed=false;ent.type='polyline';return ent;}
+      return null;
+    }
+    if(type==='DIMENSION'){
+      // Convert to our dim type using extension point coords
+      ent.p1={x:d13x,y:d13y}; ent.p2={x:d14x,y:d14y};
+      ent.type='dim'; return ent;
+    }
+    return null; // unsupported type
+  }
+
+  // ── read POLYLINE + VERTEX entities ──
+  function readPolylineVerts(){
+    const verts=[];
+    let closed=false,layer='0',col=null,lw=1;
+    // consume header codes already at i
+    while(i<pairs.length){
+      const p=peek();
+      if(p[0]===0&&(p[1].trim()==='VERTEX'||p[1].trim()==='SEQEND'))break;
+      const [c,v]=next();
+      if(c===8)layer=v.trim();
+      if(c===62){const n=Math.abs(parseInt(v.trim(),10));if(n!==256)col=aciToHex(n);}
+      if(c===70)closed=!!(parseInt(v.trim())&1);
+    }
+    while(i<pairs.length){
+      const p=peek();
+      if(p[0]===0&&p[1].trim()==='SEQEND'){i++;break;}
+      if(p[0]===0&&p[1].trim()==='VERTEX'){
+        i++;
+        let vx=0,vy=0;
+        while(i<pairs.length){
+          const q=peek();
+          if(q[0]===0)break;
+          const [c,v]=next();
+          if(c===10)vx=parseFloat(v);
+          if(c===20)vy=parseFloat(v);
+        }
+        verts.push({x:vx,y:vy});
+      } else i++;
+    }
+    if(verts.length>=2) return {type:'polyline',pts:verts,closed,layer,color:col,lw};
+    return null;
+  }
+
+  // ── scan sections ──
+  while(i<pairs.length){
+    const p=next();
+    if(p[0]===0&&p[1].trim()==='SECTION'){
+      const sec=next(); // group 2 = section name
+      if(sec[1].trim()==='TABLES') readTables();
+      else if(sec[1].trim()==='ENTITIES'||sec[1].trim()==='BLOCKS'){
+        while(i<pairs.length){
+          const q=peek();
+          if(q[0]===0&&q[1].trim()==='ENDSEC')break;
+          if(q[0]===0){
+            i++;
+            const etype=q[1].trim();
+            if(etype==='POLYLINE'){
+              const pe=readPolylineVerts();
+              if(pe)entities.push(pe);
+            } else if(['LINE','CIRCLE','ARC','LWPOLYLINE','TEXT','MTEXT',
+                        'ELLIPSE','SPLINE','DIMENSION'].includes(etype)){
+              const ent=readEntity(etype);
+              if(ent)entities.push(ent);
+            } else {
+              // skip entity we don't handle
+              stats.skipped++;
+              while(i<pairs.length&&peek()[0]!==0)i++;
+            }
+          } else i++;
+        }
+      }
+    }
+  }
+
+  stats.total=entities.length;
+  stats.layers=Object.keys(layerDefs).length;
+  return {entities, layerDefs, stats};
+}
+
+// ── Convert parsed entities into OpenDraft objects ──
+function importDXFObjects(parsed, append){
+  const {entities, layerDefs}=parsed;
+
+  // Build/merge layer table
+  const layerMap={}; // DXF layer name → our layerIdx
+  // existing layers
+  layers.forEach((l,i)=>layerMap[l.name]=i);
+
+  for(const [lname, ldef] of Object.entries(layerDefs)){
+    if(layerMap[lname]===undefined){
+      layerMap[lname]=layers.length;
+      layers.push({name:lname, color:ldef.color||'#00d4ff', visible:true});
+    }
+  }
+  // ensure layer '0' exists
+  if(layerMap['0']===undefined){layerMap['0']=layers.length;layers.push({name:'0',color:'#00d4ff',visible:true});}
+
+  for(const ent of entities){
+    const lname=ent.layer||'0';
+    let lIdx=layerMap[lname];
+    if(lIdx===undefined){lIdx=layers.length;layers.push({name:lname,color:'#00d4ff',visible:true});layerMap[lname]=lIdx;}
+
+    const base={layerIdx:lIdx, color:ent.color||null, lw:ent.lw||1};
+
+    if(ent.type==='line'){
+      objects.push({...base,type:'line',p1:{...ent.p1},p2:{...ent.p2}});
+    } else if(ent.type==='circle'){
+      objects.push({...base,type:'circle',center:{...ent.center},radius:ent.radius});
+    } else if(ent.type==='arc'){
+      objects.push({...base,type:'arc',center:{...ent.center},radius:ent.radius,startAngle:ent.startAngle,endAngle:ent.endAngle});
+    } else if(ent.type==='polyline'){
+      if(ent.pts&&ent.pts.length>=2)
+        objects.push({...base,type:'polyline',pts:ent.pts.map(p=>({...p})),closed:ent.closed||false});
+    } else if(ent.type==='text'){
+      objects.push({...base,type:'text',pos:{...ent.pos},text:ent.text,size:ent.size||12});
+    } else if(ent.type==='dim'){
+      objects.push({...base,type:'dim',p1:{...ent.p1},p2:{...ent.p2}});
+    }
+  }
+
+  // update drop-zone visibility
+  document.getElementById('drop-zone').style.display=objects.length?'none':'flex';
+}
+
+function showImportStatus(stats){
+  const ci=document.getElementById('cmd-input');
+  ci.value=`Loaded: ${stats.total} entities, ${stats.layers} layers${stats.skipped?' ('+stats.skipped+' unsupported)':''}`;
+  ci.style.color='var(--accent3)';
+  setTimeout(()=>{ci.value='';ci.style.color='var(--accent)';},3500);
+}
+
+// ── Ctrl+O keyboard shortcut ──
+// (hook into existing keydown handler — added inline below)
+
+// ══════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════
+document.getElementById('btn-grid').classList.add('active');
+document.getElementById('btn-snap').classList.add('active');
+resize();
+renderLayers();
+updatePropsPanel();
+setTool('select');
+document.getElementById('drop-zone').style.display=objects.length?'none':'flex';
+requestAnimationFrame(function loop(){render();requestAnimationFrame(loop);});
+</script>
+<!-- CONTEXT MENU -->
+<div id="ctx-menu">
+  <div class="ctx-item" id="ctx-props" onclick="openPropertiesDialog(_ctxTarget);closeContextMenu()">Properties… <kbd>Enter / DblClick</kbd></div>
+  <div class="ctx-sep" id="ctx-sep1"></div>
+  <div class="ctx-item" id="ctx-move"   onclick="setTool('move');closeContextMenu()">Move <kbd>M</kbd></div>
+  <div class="ctx-item" id="ctx-copy"   onclick="setTool('copy');closeContextMenu()">Copy <kbd>CO</kbd></div>
+  <div class="ctx-item" id="ctx-rotate" onclick="setTool('rotate');closeContextMenu()">Rotate <kbd>RO</kbd></div>
+  <div class="ctx-sep" id="ctx-sep2"></div>
+  <div class="ctx-item" id="ctx-del" class="danger" onclick="deleteSelected();closeContextMenu()" style="color:#ff8080">Erase <kbd>Del</kbd></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="selectAll();closeContextMenu()">Select All <kbd>Ctrl+A</kbd></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="undo();closeContextMenu()">Undo <kbd>Ctrl+Z</kbd></div>
+  <div class="ctx-item" onclick="redo();closeContextMenu()">Redo <kbd>Ctrl+Y</kbd></div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="toggleOrtho();closeContextMenu()">Toggle Ortho <kbd>F8</kbd></div>
+  <div class="ctx-item" onclick="toggleSnap();closeContextMenu()">Toggle Snap <kbd>F9</kbd></div>
+  <div class="ctx-item" onclick="fitAll();closeContextMenu()">Zoom Extents <kbd>ZE</kbd></div>
+</div>
+
+<!-- PROPERTIES DIALOG -->
+<div id="props-dlg">
+  <div id="props-dlg-inner">
+    <div id="props-dlg-title">
+      PROPERTIES
+      <button onclick="cancelPropsDialog()" title="Close">✕</button>
+    </div>
+    <div id="props-dlg-body"></div>
+    <div id="props-dlg-footer">
+      <button class="dlg-btn cancel" onclick="cancelPropsDialog()">Cancel</button>
+      <button class="dlg-btn ok" onclick="closePropsDialog()">Apply & Close</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
